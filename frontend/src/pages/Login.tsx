@@ -1,66 +1,43 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { authService } from "../services/authService";
 import "../styles.css";
 
 function Login() {
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // Inicializar usuarios demo en localStorage
   useEffect(() => {
-    let existingUsers = JSON.parse(localStorage.getItem("users")) || [];
-    
-    // Usuarios demo predefinidos
-    const demoUsers = [
-      { email: "agente@sistek.com", password: "123456", name: "Daniel zapata", role: "agente" },
-      { email: "agente2@sistek.com", password: "123456", name: "sebas", role: "agente" },
-      { email: "supervisor@sistek.com", password: "123456", name: "juan manuel", role: "administrador" }
-    ];
-
-    // Agregar usuarios que no existan
-    demoUsers.forEach(demoUser => {
-      const existe = existingUsers.find(u => u.email === demoUser.email);
-      if (!existe) {
-        existingUsers.push(demoUser);
-      }
-    });
-
-    localStorage.setItem("users", JSON.stringify(existingUsers));
-  }, []);
-
-  const validarEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  const handleLogin = () => {
-
-    if (!email || !password) {
-      alert("Todos los campos son obligatorios");
-      return;
-    }
-
-    if (!validarEmail(email)) {
-      alert("Ingresa un correo electrónico válido");
-      return;
-    }
-
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const user = users.find(
-      u => u.email === email && u.password === password
-    );
-
-    if (user) {
-      localStorage.setItem("currentUser", JSON.stringify(user));
+    // Si ya hay un usuario logueado, ir al dashboard
+    const currentUser = localStorage.getItem("currentUser");
+    if (currentUser) {
       navigate("/dashboard");
-    } else {
-      alert("Credenciales incorrectas");
+    }
+  }, [navigate]);
+
+  const handleLogin = async () => {
+    if (!username || !password) {
+      setError("Todos los campos son obligatorios");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authService.login(username, password);
+      localStorage.setItem("currentUser", JSON.stringify(response.user));
+      navigate("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Error al iniciar sesión");
+    } finally {
+      setLoading(false);
     }
   };
-
-
 
   return (
     <div className="auth-container">
@@ -76,10 +53,13 @@ function Login() {
         <div className="form-box">
           <h2>Iniciar sesión</h2>
 
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+
           <input 
-            placeholder="Correo"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Usuario"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={loading}
           />
 
           <input 
@@ -87,9 +67,12 @@ function Login() {
             placeholder="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
           />
 
-          <button onClick={handleLogin}>Ingresar</button>
+          <button onClick={handleLogin} disabled={loading}>
+            {loading ? "Cargando..." : "Ingresar"}
+          </button>
 
           <p className="link">
             ¿No tienes cuenta?{" "}

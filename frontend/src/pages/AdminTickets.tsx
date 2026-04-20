@@ -1,104 +1,86 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ticketService, Ticket } from "../services/ticketService";
+import { authService } from "../services/authService";
 import "../styles.css";
 
 function AdminTickets() {
-  const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState([]);
-  const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [agentesAsignacion, setAgentesAsignacion] = useState({});
+  const [user, setUser] = useState<any>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [agentes, setAgentes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-    if (!currentUser || currentUser.role !== "administrador") {
-      navigate("/dashboard");
-    } else {
-      setUser(currentUser);
-      cargarTickets();
-      cargarAgentes();
-    }
-  }, [navigate]);
-
-  // Escuchar cambios en localStorage para actualizar en tiempo real
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "tickets" || e.key === "users") {
-        cargarTickets();
-        cargarAgentes();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  const cargarTickets = () => {
-    const todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
-    setTickets(todosTickets);
-  };
-
-  const cargarAgentes = () => {
-    const usuarios = JSON.parse(localStorage.getItem("users")) || [];
-    const agentes = usuarios.filter(u => u.role === "agente");
-    const asignacion = {};
-    agentes.forEach(agente => {
-      asignacion[agente.email] = agente.name;
-    });
-    setAgentesAsignacion(asignacion);
-  };
-
-  const getAgentes = () => {
-    const usuarios = JSON.parse(localStorage.getItem("users")) || [];
-    return usuarios.filter(u => u.role === "agente");
-  };
-
-  const asignarTicketAlAgente = (ticketId, agentEmail) => {
-    if (!agentEmail) {
-      alert("Selecciona un agente");
+    const currentUser = localStorage.getItem("currentUser");
+    if (!currentUser) {
+      navigate("/");
       return;
     }
 
-    let todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
-    const ticketIndex = todosTickets.findIndex(t => t.id === ticketId);
+    const userData = JSON.parse(currentUser);
+    if (userData.role !== "administrador") {
+      navigate("/dashboard");
+      return;
+    }
 
-    if (ticketIndex !== -1) {
-      todosTickets[ticketIndex].agente_asignado = agentEmail;
-      todosTickets[ticketIndex].fecha_asignacion = new Date().toLocaleDateString('es-CO');
-      localStorage.setItem("tickets", JSON.stringify(todosTickets));
-      alert("Ticket asignado al agente");
-      cargarTickets();
+    setUser(userData);
+    cargarDatos();
+  }, [navigate]);
+
+  // Refrescar cada 5 segundos
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(() => {
+        cargarDatos();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const cargarDatos = async () => {
+    try {
+      setLoading(true);
+      const [todosTickets, usuarios] = await Promise.all([
+        ticketService.getAllTickets(),
+        authService.getUsers()
+      ]);
+      setTickets(todosTickets);
+      setAgentes(usuarios.filter(u => u.role === "agente"));
+    } catch (err: any) {
+      console.error("Error cargando datos:", err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const cambiarEstadoTicket = (ticketId, nuevoEstado) => {
-    let todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
-    const ticketIndex = todosTickets.findIndex(t => t.id === ticketId);
-
-    if (ticketIndex !== -1) {
-      todosTickets[ticketIndex].estado = nuevoEstado;
-      localStorage.setItem("tickets", JSON.stringify(todosTickets));
-      cargarTickets();
+  const cambiarEstado = async (ticketId: number, nuevoEstado: string) => {
+    try {
+      await ticketService.updateTicket(ticketId, undefined, undefined, nuevoEstado);
+      alert("Estado actualizado");
+      cargarDatos();
+    } catch (err: any) {
+      alert("Error: " + err.message);
     }
   };
 
-  const eliminarTicket = (ticketId) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este ticket?")) {
-      let todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
-      todosTickets = todosTickets.filter(t => t.id !== ticketId);
-      localStorage.setItem("tickets", JSON.stringify(todosTickets));
-      cargarTickets();
+  const eliminarTicket = async (ticketId: number) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este ticket?")) return;
+
+    try {
+      await ticketService.deleteTicket(ticketId);
       alert("Ticket eliminado");
+      cargarDatos();
+    } catch (err: any) {
+      alert("Error: " + err.message);
     }
   };
 
-  const ticketsFiltrados = filtroEstado === "todos" 
-    ? tickets 
-    : tickets.filter(t => t.estado === filtroEstado);
-
-  const agentes = getAgentes();
+  const logout = () => {
+    localStorage.removeItem("currentUser");
+    navigate("/");
+  };
 
   if (!user) return null;
 
@@ -111,48 +93,174 @@ function AdminTickets() {
         <button onClick={() => navigate("/dashboard")}>Inicio</button>
         <button onClick={() => navigate("/admin-tickets")} style={{ backgroundColor: "#3b82f6", color: "white" }}>Todos los Tickets</button>
 
-        <button onClick={() => {
-          localStorage.removeItem("currentUser");
-          navigate("/");
-        }}>Cerrar sesión</button>
+        <button onClick={logout}>Cerrar sesión</button>
       </div>
 
       {/* ⚪ CONTENIDO */}
       <div className="main-content">
         <h1>Gestión de Todos los Tickets</h1>
 
-        {/* FILTROS */}
-        <div style={{
-          backgroundColor: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          padding: "20px",
-          marginBottom: "20px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-        }}>
-          <h3 style={{ marginTop: 0, marginBottom: "15px", color: "#1f2937" }}>Filtrar por Estado</h3>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setFiltroEstado("todos")}
-              style={{
-                backgroundColor: filtroEstado === "todos" ? "#3b82f6" : "#e5e7eb",
-                color: filtroEstado === "todos" ? "white" : "#374151",
-                padding: "8px 16px",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontWeight: "500"
-              }}
-            >
-              Todos ({tickets.length})
-            </button>
-            <button
-              onClick={() => setFiltroEstado("Abierto")}
-              style={{
-                backgroundColor: filtroEstado === "Abierto" ? "#ef4444" : "#e5e7eb",
-                color: filtroEstado === "Abierto" ? "white" : "#374151",
-                padding: "8px 16px",
-                border: "none",
+        {loading ? (
+          <p>Cargando tickets...</p>
+        ) : tickets.length === 0 ? (
+          <div style={{
+            textAlign: "center",
+            padding: "40px",
+            backgroundColor: "#f9fafb",
+            borderRadius: "8px",
+            border: "1px solid #e5e7eb"
+          }}>
+            <p style={{ color: "#6b7280", fontSize: "16px" }}>No hay tickets en el sistema</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            {tickets.map((ticket) => (
+              <div
+                key={ticket.id}
+                style={{
+                  backgroundColor: "white",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                  padding: "20px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+                }}
+              >
+                {/* ENCABEZADO */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "15px" }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 5px 0", color: "#1f2937", fontSize: "18px" }}>{ticket.title}</h3>
+                    <p style={{ margin: "0", color: "#6b7280", fontSize: "14px" }}>
+                      <strong>ID:</strong> {ticket.id} | <strong>Usuario:</strong> {ticket.user_id}
+                    </p>
+                  </div>
+                  <div style={{
+                    padding: "6px 12px",
+                    backgroundColor:
+                      ticket.status === "open" ? "#fee2e2" :
+                      ticket.status === "in_progress" ? "#fef3c7" :
+                      "#d1fae5",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    color:
+                      ticket.status === "open" ? "#991b1b" :
+                      ticket.status === "in_progress" ? "#92400e" :
+                      "#065f46"
+                  }}>
+                    {ticket.status === "open" ? "Abierto" : 
+                     ticket.status === "in_progress" ? "En progreso" :
+                     "Cerrado"}
+                  </div>
+                </div>
+
+                {/* DESCRIPCIÓN */}
+                <p style={{
+                  backgroundColor: "#f9fafb",
+                  padding: "12px",
+                  borderRadius: "4px",
+                  color: "#374151",
+                  margin: "0 0 15px 0",
+                  lineHeight: "1.5"
+                }}>
+                  <strong>Descripción:</strong> {ticket.description}
+                </p>
+
+                {/* INFORMACIÓN */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: "15px",
+                  marginBottom: "15px"
+                }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "5px" }}>
+                      Creado:
+                    </label>
+                    <div style={{ color: "#666", padding: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", fontSize: "13px" }}>
+                      {new Date(ticket.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "5px" }}>
+                      Actualizado:
+                    </label>
+                    <div style={{ color: "#666", padding: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", fontSize: "13px" }}>
+                      {new Date(ticket.updated_at).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "5px" }}>
+                      User ID:
+                    </label>
+                    <div style={{ color: "#666", padding: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", fontSize: "13px" }}>
+                      {ticket.user_id}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CONTROLES */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px",
+                  paddingTop: "15px",
+                  borderTop: "1px solid #e5e7eb"
+                }}>
+                  {/* CAMBIAR ESTADO */}
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "5px" }}>
+                      Cambiar Estado:
+                    </label>
+                    <select
+                      onChange={(e) => cambiarEstado(ticket.id, e.target.value)}
+                      value={ticket.status}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "4px",
+                        fontSize: "13px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <option value="open">Abierto</option>
+                      <option value="in_progress">En progreso</option>
+                      <option value="closed">Cerrado</option>
+                    </select>
+                  </div>
+
+                  {/* ELIMINAR */}
+                  <div style={{ display: "flex", alignItems: "flex-end" }}>
+                    <button
+                      onClick={() => eliminarTicket(ticket.id)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        backgroundColor: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default AdminTickets;
                 borderRadius: "4px",
                 cursor: "pointer",
                 fontWeight: "500"

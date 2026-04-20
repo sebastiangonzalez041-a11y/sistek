@@ -1,51 +1,36 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authService } from "../services/authService";
 import "../styles.css";
 
 function Register() {
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
-  const validarEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const handleRegister = async () => {
 
-  const handleRegister = () => {
-
-    if (!name || !email || !password) {
-      alert("Todos los campos son obligatorios");
+    if (!username || !password) {
+      setError("Todos los campos son obligatorios");
       return;
     }
 
-    if (!validarEmail(email)) {
-      alert("Ingresa un correo válido");
-      return;
+    setLoading(true);
+    setError("");
+
+    try {
+      await authService.register(username, password, "cliente");
+      alert("Registro exitoso");
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message || "Error al registrarse");
+    } finally {
+      setLoading(false);
     }
-
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const existe = users.find(u => u.email === email);
-
-    if (existe) {
-      alert("El correo ya está registrado");
-      return;
-    }
-
-    users.push({
-      name,
-      email,
-      password,
-      role: "cliente"
-    });
-
-    localStorage.setItem("users", JSON.stringify(users));
-
-    alert("Registro exitoso");
-    navigate("/");
   };
 
   return (
@@ -63,13 +48,26 @@ function Register() {
 
           <h2>Registro</h2>
 
-          <input placeholder="Nombre" onChange={(e) => setName(e.target.value)} />
+          {error && <p style={{ color: 'red' }}>{error}</p>}
 
-          <input placeholder="Correo" onChange={(e) => setEmail(e.target.value)} />
+          <input 
+            placeholder="Usuario" 
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={loading}
+          />
 
-          <input type="password" placeholder="Contraseña" onChange={(e) => setPassword(e.target.value)} />
+          <input 
+            type="password" 
+            placeholder="Contraseña" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
 
-          <button onClick={handleRegister}>Registrarse</button>
+          <button onClick={handleRegister} disabled={loading}>
+            {loading ? "Registrando..." : "Registrarse"}
+          </button>
 
           <p className="link">
             ¿Ya tienes cuenta?{" "}

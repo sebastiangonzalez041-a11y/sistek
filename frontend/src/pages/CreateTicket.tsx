@@ -1,50 +1,50 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ticketService } from "../services/ticketService";
 import "../styles.css";
 
 function CreateTicket() {
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [prioridad, setPrioridad] = useState("");
-  const [tipo, setTipo] = useState("");
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
+    const currentUser = localStorage.getItem("currentUser");
     if (!currentUser) {
       navigate("/");
     } else {
-      setUser(currentUser);
+      setUser(JSON.parse(currentUser));
     }
   }, [navigate]);
 
-  const crearTicket = () => {
-
-    if (!titulo || !descripcion || !prioridad || !tipo) {
-      alert("Todos los campos son obligatorios");
+  const crearTicket = async () => {
+    if (!titulo || !descripcion) {
+      setError("Todos los campos son obligatorios");
       return;
     }
 
-    let tickets = JSON.parse(localStorage.getItem("tickets")) || [];
+    setLoading(true);
+    setError("");
 
-    tickets.push({
-      titulo,
-      descripcion,
-      prioridad,
-      tipo,
-      estado: "Abierto",
-      usuario: user.email
-    });
+    try {
+      await ticketService.createTicket(
+        titulo,
+        descripcion,
+        "open",
+        user.id
+      );
 
-    localStorage.setItem("tickets", JSON.stringify(tickets));
-
-    alert("Ticket creado");
-
-    navigate("/tickets"); // 🔥 vuelve a ver tickets
+      alert("Ticket creado exitosamente");
+      navigate("/tickets");
+    } catch (err: any) {
+      setError(err.message || "Error al crear ticket");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!user) return null;
@@ -54,14 +54,24 @@ function CreateTicket() {
 
       <h1>Crear Ticket</h1>
 
-      <div className="ticket-form">
-        <input placeholder="Título" onChange={(e) => setTitulo(e.target.value)} />
-        <textarea placeholder="Descripción" onChange={(e) => setDescripcion(e.target.value)} />
-        <input placeholder="Prioridad" onChange={(e) => setPrioridad(e.target.value)} />
-        <input placeholder="Tipo" onChange={(e) => setTipo(e.target.value)} />
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <button onClick={crearTicket}>
-          Crear Ticket
+      <div className="ticket-form">
+        <input 
+          placeholder="Título" 
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          disabled={loading}
+        />
+        <textarea 
+          placeholder="Descripción" 
+          value={descripcion}
+          onChange={(e) => setDescripcion(e.target.value)}
+          disabled={loading}
+        />
+
+        <button onClick={crearTicket} disabled={loading}>
+          {loading ? "Creando..." : "Crear Ticket"}
         </button>
       </div>
 

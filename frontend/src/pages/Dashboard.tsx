@@ -1,54 +1,54 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ticketService, Ticket } from "../services/ticketService";
+import { authService } from "../services/authService";
 import "../styles.css";
 
 function Dashboard() {
 
-  const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState([]);
+  const [user, setUser] = useState<any>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [agentes, setAgentes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
+    const currentUser = localStorage.getItem("currentUser");
     if (!currentUser) {
       navigate("/");
     } else {
-      setUser(currentUser);
-      cargarTickets(currentUser);
-      if (currentUser.role === "administrador") {
-        cargarAgentes();
-      }
+      const userData = JSON.parse(currentUser);
+      setUser(userData);
+      cargarDatos(userData);
     }
   }, [navigate]);
 
-  const cargarTickets = (currentUser) => {
-    const todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
-    
-    if (currentUser.role === "cliente") {
-      // Cliente ve solo sus tickets
-      const misTickets = todosTickets.filter(t => t.usuario === currentUser.email);
-      setTickets(misTickets);
-    }
-  };
+  const cargarDatos = async (currentUser: any) => {
+    try {
+      setLoading(true);
 
-  const cargarAgentes = () => {
-    const usuarios = JSON.parse(localStorage.getItem("users")) || [];
-    const listaAgentes = usuarios.filter(u => u.role === "agente");
-    setAgentes(listaAgentes);
+      // Cargar tickets del usuario
+      if (currentUser.role !== "administrador") {
+        const miTickets = await ticketService.getUserTickets(currentUser.id);
+        setTickets(miTickets);
+      }
+
+      // Cargar agentes si es administrador
+      if (currentUser.role === "administrador") {
+        const usuarios = await authService.getUsers();
+        const listaAgentes = usuarios.filter(u => u.role === "agente");
+        setAgentes(listaAgentes);
+      }
+    } catch (err: any) {
+      console.error("Error cargando datos:", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
     localStorage.removeItem("currentUser");
     navigate("/");
-  };
-
-  const cambiarRol = (rol) => {
-    let user = JSON.parse(localStorage.getItem("currentUser"));
-    user.role = rol;
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    setUser(user);
   };
 
   if (!user) return null;
@@ -62,12 +62,10 @@ function Dashboard() {
 
         <button onClick={() => navigate("/dashboard")}>Inicio</button>
 
-        {user.role === "cliente" && (
-          <button onClick={() => navigate("/tickets")}>Crear Ticket</button>
-        )}
-
-        {user.role === "agente" && (
-          <button onClick={() => navigate("/tickets")}>Gestionar Tickets</button>
+        {user.role !== "administrador" && (
+          <button onClick={() => navigate("/tickets")}>
+            {user.role === "agente" ? "Gestionar Tickets" : "Crear Ticket"}
+          </button>
         )}
 
         {user.role === "administrador" && (
@@ -83,7 +81,7 @@ function Dashboard() {
         <h1>Bienvenido</h1>
 
         <div className="card">
-          <p><strong>Usuario:</strong> {user.name}</p>
+          <p><strong>Usuario:</strong> {user.username}</p>
           <p><strong>Rol:</strong> {user.role}</p>
         </div>
 
@@ -117,7 +115,9 @@ function Dashboard() {
             <div className="card">
               <h3>Agentes Disponibles ({agentes.length})</h3>
 
-              {agentes.length === 0 ? (
+              {loading ? (
+                <p>Cargando agentes...</p>
+              ) : agentes.length === 0 ? (
                 <p style={{ color: "#6b7280", textAlign: "center", padding: "20px" }}>
                   No hay agentes registrados aún
                 </p>
@@ -125,7 +125,7 @@ function Dashboard() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "15px" }}>
                   {agentes.map((agente) => (
                     <div
-                      key={agente.email}
+                      key={agente.id}
                       style={{
                         border: "1px solid #e5e7eb",
                         borderRadius: "6px",
@@ -138,10 +138,10 @@ function Dashboard() {
                     >
                       <div>
                         <h4 style={{ margin: "0 0 5px 0", color: "#1f2937", fontSize: "15px" }}>
-                          {agente.name}
+                          {agente.username}
                         </h4>
                         <p style={{ margin: "0", fontSize: "13px", color: "#6b7280" }}>
-                          {agente.email}
+                          {agente.role}
                         </p>
                       </div>
                       <div
@@ -161,15 +161,6 @@ function Dashboard() {
                 </div>
               )}
             </div>
-
-            {/* ASIGNAR ROLES */}
-            <div className="card">
-              <h3>Cambiar tu Rol (Demo)</h3>
-
-              <button onClick={() => cambiarRol("cliente")} style={{ marginRight: "10px" }}>Cliente</button>
-              <button onClick={() => cambiarRol("agente")} style={{ marginRight: "10px" }}>Agente</button>
-              <button onClick={() => cambiarRol("administrador")}>Administrador</button>
-            </div>
           </>
         )}
 
@@ -179,7 +170,9 @@ function Dashboard() {
             <h3>Zona Cliente</h3>
             <p>Consulta el estado de tus tickets</p>
 
-            {tickets.length === 0 ? (
+            {loading ? (
+              <p>Cargando tickets...</p>
+            ) : tickets.length === 0 ? (
               <div style={{ 
                 textAlign: "center", 
                 padding: "20px",
@@ -212,23 +205,10 @@ function Dashboard() {
                     backgroundColor: "#fafafa"
                   }}>
                     <div style={{ marginBottom: "8px" }}>
-                      <h4 style={{ margin: "0 0 4px 0", color: "#1f2937", fontSize: "15px" }}>{ticket.titulo}</h4>
-                      <p style={{ margin: "0", fontSize: "13px", color: "#666" }}>{ticket.descripcion}</p>
+                      <h4 style={{ margin: "0 0 4px 0", color: "#1f2937", fontSize: "15px" }}>{ticket.title}</h4>
+                      <p style={{ margin: "0", fontSize: "13px", color: "#666" }}>{ticket.description}</p>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", fontSize: "13px" }}>
-                      <div>
-                        <strong style={{ color: "#374151" }}>Tipo:</strong> 
-                        <div style={{ color: "#666" }}>{ticket.tipo}</div>
-                      </div>
-                      <div>
-                        <strong style={{ color: "#374151" }}>Prioridad:</strong> 
-                        <div style={{ 
-                          color: ticket.prioridad ? "#d97706" : "#999",
-                          fontWeight: "bold"
-                        }}>
-                          {ticket.prioridad || "Pendiente"}
-                        </div>
-                      </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "13px" }}>
                       <div>
                         <strong style={{ color: "#374151" }}>Estado:</strong> 
                         <div style={{ 
@@ -240,15 +220,16 @@ function Dashboard() {
                           fontSize: "11px",
                           fontWeight: "bold"
                         }}>
-                          {ticket.estado}
+                          {ticket.status}
+                        </div>
+                      </div>
+                      <div>
+                        <strong style={{ color: "#374151" }}>Creado:</strong> 
+                        <div style={{ color: "#666" }}>
+                          {new Date(ticket.created_at).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
-                    {ticket.fecha_asignacion && (
-                      <div style={{ marginTop: "8px", fontSize: "12px", color: "#0c4a6e", backgroundColor: "#e0f2fe", padding: "6px", borderRadius: "4px" }}>
-                        <strong>📅 Asignado:</strong> {ticket.fecha_asignacion}
-                      </div>
-                    )}
                   </div>
                 ))}
                 <button 
