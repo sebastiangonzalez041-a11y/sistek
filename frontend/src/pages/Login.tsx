@@ -10,19 +10,24 @@ function Login() {
 
   // Inicializar usuarios demo en localStorage
   useEffect(() => {
-    const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
+    let existingUsers = JSON.parse(localStorage.getItem("users")) || [];
     
     // Usuarios demo predefinidos
     const demoUsers = [
-      { email: "agente@sistek.com", password: "123456", name: "Juan Agente", role: "agente" },
-      { email: "agente2@sistek.com", password: "123456", name: "Carlos García", role: "agente" },
-      { email: "supervisor@sistek.com", password: "123456", name: "María Supervisor", role: "administrador" }
+      { email: "agente@sistek.com", password: "123456", name: "Daniel zapata", role: "agente" },
+      { email: "agente2@sistek.com", password: "123456", name: "sebas", role: "agente" },
+      { email: "supervisor@sistek.com", password: "123456", name: "juan manuel", role: "administrador" }
     ];
 
-    // Solo agregar si no existen
-    if (existingUsers.length === 0) {
-      localStorage.setItem("users", JSON.stringify(demoUsers));
-    }
+    // Agregar usuarios que no existan
+    demoUsers.forEach(demoUser => {
+      const existe = existingUsers.find(u => u.email === demoUser.email);
+      if (!existe) {
+        existingUsers.push(demoUser);
+      }
+    });
+
+    localStorage.setItem("users", JSON.stringify(existingUsers));
   }, []);
 
   const validarEmail = (email) => {

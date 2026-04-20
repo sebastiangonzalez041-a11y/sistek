@@ -22,6 +22,19 @@ function AdminTickets() {
     }
   }, [navigate]);
 
+  // Escuchar cambios en localStorage para actualizar en tiempo real
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "tickets" || e.key === "users") {
+        cargarTickets();
+        cargarAgentes();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   const cargarTickets = () => {
     const todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
     setTickets(todosTickets);
@@ -53,6 +66,7 @@ function AdminTickets() {
 
     if (ticketIndex !== -1) {
       todosTickets[ticketIndex].agente_asignado = agentEmail;
+      todosTickets[ticketIndex].fecha_asignacion = new Date().toLocaleDateString('es-CO');
       localStorage.setItem("tickets", JSON.stringify(todosTickets));
       alert("Ticket asignado al agente");
       cargarTickets();
@@ -161,10 +175,10 @@ function AdminTickets() {
               En progreso ({tickets.filter(t => t.estado === "En progreso").length})
             </button>
             <button
-              onClick={() => setFiltroEstado("Resuelto")}
+              onClick={() => setFiltroEstado("Cerrado")}
               style={{
-                backgroundColor: filtroEstado === "Resuelto" ? "#10b981" : "#e5e7eb",
-                color: filtroEstado === "Resuelto" ? "white" : "#374151",
+                backgroundColor: filtroEstado === "Cerrado" ? "#10b981" : "#e5e7eb",
+                color: filtroEstado === "Cerrado" ? "white" : "#374151",
                 padding: "8px 16px",
                 border: "none",
                 borderRadius: "4px",
@@ -172,7 +186,7 @@ function AdminTickets() {
                 fontWeight: "500"
               }}
             >
-              Resuelto ({tickets.filter(t => t.estado === "Resuelto").length})
+              Cerrado ({tickets.filter(t => t.estado === "Cerrado").length})
             </button>
           </div>
         </div>
@@ -281,6 +295,21 @@ function AdminTickets() {
                   </div>
                 </div>
 
+                {/* FECHA DE ASIGNACIÓN */}
+                {ticket.fecha_asignacion && (
+                  <div style={{
+                    backgroundColor: "#e0f2fe",
+                    border: "1px solid #0284c7",
+                    padding: "10px",
+                    borderRadius: "4px",
+                    marginBottom: "15px",
+                    fontSize: "13px",
+                    color: "#0c4a6e"
+                  }}>
+                    <strong>📅 Fecha de Asignación:</strong> {ticket.fecha_asignacion}
+                  </div>
+                )}
+
                 {/* CONTROLES */}
                 <div style={{
                   display: "grid",
@@ -334,7 +363,7 @@ function AdminTickets() {
                     >
                       <option value="Abierto">Abierto</option>
                       <option value="En progreso">En progreso</option>
-                      <option value="Resuelto">Resuelto</option>
+                      <option value="Cerrado">Cerrado</option>
                     </select>
                   </div>
 

@@ -244,6 +244,11 @@ function Dashboard() {
                         </div>
                       </div>
                     </div>
+                    {ticket.fecha_asignacion && (
+                      <div style={{ marginTop: "8px", fontSize: "12px", color: "#0c4a6e", backgroundColor: "#e0f2fe", padding: "6px", borderRadius: "4px" }}>
+                        <strong>📅 Asignado:</strong> {ticket.fecha_asignacion}
+                      </div>
+                    )}
                   </div>
                 ))}
                 <button 

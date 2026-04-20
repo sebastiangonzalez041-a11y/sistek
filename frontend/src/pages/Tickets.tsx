@@ -10,6 +10,7 @@ function Tickets() {
   const [tipo, setTipo] = useState("");
   const [tickets, setTickets] = useState([]);
   const [prioridadSeleccionada, setPrioridadSeleccionada] = useState({});
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState({});
 
   const navigate = useNavigate();
 
@@ -24,6 +25,32 @@ function Tickets() {
       cargarTickets(currentUser);
     }
   }, [navigate]);
+
+  // Escuchar cambios en localStorage para actualizar en tiempo real
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "tickets") {
+        const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+        if (currentUser) {
+          cargarTickets(currentUser);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [user]);
+
+  // Para agentes, refrescar tickets cada 3 segundos automáticamente
+  useEffect(() => {
+    if (user && user.role === "agente") {
+      const interval = setInterval(() => {
+        cargarTickets(user);
+      }, 3000); // Cada 3 segundos
+
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Cargar tickets según el rol
   const cargarTickets = (currentUser) => {
@@ -88,6 +115,34 @@ function Tickets() {
       todosTickets[ticketIndex].prioridad = prioridad;
       localStorage.setItem("tickets", JSON.stringify(todosTickets));
       alert("Prioridad asignada");
+      cargarTickets(user);
+    }
+  };
+
+  // Cambiar estado del ticket (solo agentes)
+  const cambiarEstado = (ticketId) => {
+    const nuevoEstado = estadoSeleccionado[ticketId];
+
+    if (!nuevoEstado) {
+      alert("Selecciona un estado");
+      return;
+    }
+
+    let todosTickets = JSON.parse(localStorage.getItem("tickets")) || [];
+    const ticketIndex = todosTickets.findIndex(t => t.id === ticketId);
+
+    if (ticketIndex !== -1) {
+      const ticket = todosTickets[ticketIndex];
+
+      // Validar que no pueda estar "En progreso" sin estar asignado
+      if (nuevoEstado === "En progreso" && !ticket.agente_asignado) {
+        alert("No se puede poner en progreso un ticket que no está asignado a un agente");
+        return;
+      }
+
+      todosTickets[ticketIndex].estado = nuevoEstado;
+      localStorage.setItem("tickets", JSON.stringify(todosTickets));
+      alert("Estado actualizado");
       cargarTickets(user);
     }
   };
@@ -177,21 +232,38 @@ function Tickets() {
         {/* HEADER CON BOTÓN */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h1 style={{ margin: "0" }}>Gestionar Tickets</h1>
-          <button 
-            onClick={() => navigate("/dashboard")}
-            style={{ 
-              backgroundColor: "#6b7280", 
-              color: "white", 
-              padding: "8px 16px", 
-              border: "none", 
-              borderRadius: "4px", 
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "bold"
-            }}
-          >
-            ← Volver
-          </button>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button 
+              onClick={() => cargarTickets(user)}
+              style={{ 
+                backgroundColor: "#10b981", 
+                color: "white", 
+                padding: "8px 16px", 
+                border: "none", 
+                borderRadius: "4px", 
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "bold"
+              }}
+            >
+              🔄 Refrescar
+            </button>
+            <button 
+              onClick={() => navigate("/dashboard")}
+              style={{ 
+                backgroundColor: "#6b7280", 
+                color: "white", 
+                padding: "8px 16px", 
+                border: "none", 
+                borderRadius: "4px", 
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "bold"
+              }}
+            >
+              ← Volver
+            </button>
+          </div>
         </div>
 
         {tickets.length === 0 ? (
@@ -218,6 +290,11 @@ function Tickets() {
 
                 <div style={{ backgroundColor: "#fff", padding: "10px", borderRadius: "4px", marginBottom: "10px" }}>
                   <p style={{ margin: "0 0 5px 0", fontSize: "14px" }}><strong>Tipo:</strong> {ticket.tipo}</p>
+                  {ticket.fecha_asignacion && (
+                    <p style={{ margin: "5px 0 0 0", fontSize: "12px", color: "#0c4a6e" }}>
+                      <strong>📅 Asignado:</strong> {ticket.fecha_asignacion}
+                    </p>
+                  )}
                 </div>
 
                 {/* Radio buttons prioridad */}
@@ -276,6 +353,46 @@ function Tickets() {
                       ✓ Prioridad: {ticket.prioridad}
                     </span>
                   )}
+                </div>
+
+                {/* CAMBIAR ESTADO */}
+                <div style={{ backgroundColor: "#fff", padding: "10px", borderRadius: "4px", marginTop: "10px", borderLeft: "4px solid #f59e0b" }}>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "8px" }}>
+                    Cambiar Estado:
+                  </label>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <select
+                      onChange={(e) => setEstadoSeleccionado({...estadoSeleccionado, [ticket.id]: e.target.value})}
+                      defaultValue={ticket.estado}
+                      style={{
+                        padding: "8px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "4px",
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        flex: 1
+                      }}
+                    >
+                      <option value="Abierto">Abierto</option>
+                      <option value="En progreso">En progreso</option>
+                      <option value="Cerrado">Cerrado</option>
+                    </select>
+                    <button
+                      onClick={() => cambiarEstado(ticket.id)}
+                      style={{
+                        backgroundColor: "#f59e0b",
+                        color: "white",
+                        padding: "8px 16px",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      Actualizar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
