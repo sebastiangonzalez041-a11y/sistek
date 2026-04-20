@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles.css";
 
@@ -7,6 +7,23 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+
+  // Inicializar usuarios demo en localStorage
+  useEffect(() => {
+    const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
+    
+    // Usuarios demo predefinidos
+    const demoUsers = [
+      { email: "agente@sistek.com", password: "123456", name: "Juan Agente", role: "agente" },
+      { email: "agente2@sistek.com", password: "123456", name: "Carlos García", role: "agente" },
+      { email: "supervisor@sistek.com", password: "123456", name: "María Supervisor", role: "administrador" }
+    ];
+
+    // Solo agregar si no existen
+    if (existingUsers.length === 0) {
+      localStorage.setItem("users", JSON.stringify(demoUsers));
+    }
+  }, []);
 
   const validarEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -38,6 +55,8 @@ function Login() {
     }
   };
 
+
+
   return (
     <div className="auth-container">
 
@@ -54,12 +73,14 @@ function Login() {
 
           <input 
             placeholder="Correo"
+            value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
 
           <input 
             type="password"
             placeholder="Contraseña"
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
 

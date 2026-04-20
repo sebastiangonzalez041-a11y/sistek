@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import CreateTicket from './pages/CreateTicket';
+import AdminTickets from './pages/AdminTickets';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/create-ticket" element={<CreateTicket />} />
+        <Route path="/admin-tickets" element={<AdminTickets />} />
       </Routes>
     </BrowserRouter>
   );
