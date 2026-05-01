@@ -10,6 +10,8 @@ function AdminTickets() {
   const [agentes, setAgentes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
+  const [selectedAgents, setSelectedAgents] = useState<{ [key: number]: string }>({});
+  const [loadingAssign, setLoadingAssign] = useState<number | null>(null);
   
   const navigate = useNavigate();
 
@@ -55,11 +57,19 @@ function AdminTickets() {
 
   const asignarTicket = async (ticketId: number, agentId: number) => {
     try {
+      setLoadingAssign(ticketId);
       await ticketService.assignTicketToAgent(ticketId, agentId);
       alert("Ticket asignado exitosamente");
+      setSelectedAgents(prev => {
+        const updated = { ...prev };
+        delete updated[ticketId];
+        return updated;
+      });
       cargarDatos();
     } catch (err: any) {
       alert("Error: " + err.message);
+    } finally {
+      setLoadingAssign(null);
     }
   };
 
@@ -250,13 +260,14 @@ function AdminTickets() {
                       <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#1e40af", marginBottom: "8px" }}>
                         Asignar a Agente:
                       </label>
-                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                         <select
-                          defaultValue={ticket.assigned_agent_id || ""}
+                          value={selectedAgents[ticket.id] || ""}
                           onChange={(e) => {
-                            if (e.target.value) {
-                              asignarTicket(ticket.id, parseInt(e.target.value));
-                            }
+                            setSelectedAgents(prev => ({
+                              ...prev,
+                              [ticket.id]: e.target.value
+                            }));
                           }}
                           style={{
                             padding: "8px",
@@ -275,8 +286,30 @@ function AdminTickets() {
                             </option>
                           ))}
                         </select>
+                        <button
+                          onClick={() => {
+                            const agentId = parseInt(selectedAgents[ticket.id]);
+                            if (!isNaN(agentId)) {
+                              asignarTicket(ticket.id, agentId);
+                            }
+                          }}
+                          disabled={!selectedAgents[ticket.id] || loadingAssign === ticket.id}
+                          style={{
+                            padding: "8px 16px",
+                            backgroundColor: selectedAgents[ticket.id] ? "#3b82f6" : "#d1d5db",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: selectedAgents[ticket.id] ? "pointer" : "not-allowed",
+                            fontSize: "13px",
+                            fontWeight: "bold",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {loadingAssign === ticket.id ? "Asignando..." : "Asignar"}
+                        </button>
                         {ticket.assigned_agent_id && (
-                          <div style={{ fontSize: "12px", color: "#0369a1" }}>
+                          <div style={{ fontSize: "12px", color: "#0369a1", whiteSpace: "nowrap" }}>
                             ✓ Asignado
                           </div>
                         )}

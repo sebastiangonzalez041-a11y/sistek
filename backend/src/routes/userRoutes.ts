@@ -7,6 +7,7 @@ const router = Router();
 // Rutas de autenticación (sin middleware)
 router.post('/register', userController.register);
 router.post('/login', userController.login);
+router.post('/refresh-token', authMiddleware, userController.refreshToken);
 
 // Rutas protegidas
 router.get('/profile', authMiddleware, userController.getProfile);

@@ -17,7 +17,74 @@ interface AuthState {
   token: string | null;
 }
 
+let tokenRefreshInterval: NodeJS.Timeout | null = null;
+
 export const authService = {
+  // Decodificar JWT para obtener el tiempo de expiración
+  private_getTokenExpiration(token: string): number {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000; // Convertir a millisegundos
+    } catch (e) {
+      return 0;
+    }
+  },
+
+  // Renovar token antes de que expire
+  async setupTokenRefresh(): Promise<void> {
+    const token = this.getToken();
+    if (!token) return;
+
+    // Limpiar intervalo anterior si existe
+    if (tokenRefreshInterval) {
+      clearInterval(tokenRefreshInterval);
+    }
+
+    const expirationTime = this.private_getTokenExpiration(token);
+    const now = Date.now();
+    const timeUntilExpiry = expirationTime - now;
+    
+    // Renovar token 5 minutos antes de que expire (si expiry > 5 min)
+    const refreshTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 60 * 1000);
+
+    tokenRefreshInterval = setInterval(() => {
+      this.refreshToken().catch(() => {
+        // Si falla, logout
+        this.logout();
+        window.location.href = '/';
+      });
+    }, refreshTime);
+  },
+
+  // Renovar token
+  async refreshToken(): Promise<void> {
+    const token = this.getToken();
+    if (!token) throw new Error('No token available');
+
+    const response = await fetch(`${API_URL}/users/refresh-token`, {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      this.logout();
+      throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
+    localStorage.setItem('token', data.token);
+    
+    // Configurar nuevo intervalo de refresh
+    this.setupTokenRefresh();
+  },
+
+  // Limpiar intervalo de refresh
+  clearTokenRefresh(): void {
+    if (tokenRefreshInterval) {
+      clearInterval(tokenRefreshInterval);
+      tokenRefreshInterval = null;
+    }
+  },
   // Registrar usuario
   async register(username: string, password: string, role: string = 'cliente'): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/users/register`, {
@@ -36,6 +103,9 @@ export const authService = {
     // Guardar token y usuario en localStorage
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
+    
+    // Configurar refresh token
+    this.setupTokenRefresh();
     
     return data;
   },
@@ -59,11 +129,15 @@ export const authService = {
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     
+    // Configurar refresh token
+    this.setupTokenRefresh();
+    
     return data;
   },
 
   // Logout
   logout(): void {
+    this.clearTokenRefresh();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },

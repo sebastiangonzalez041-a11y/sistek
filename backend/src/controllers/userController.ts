@@ -104,6 +104,26 @@ export const getProfile = async (req: Request, res: Response) => {
   }
 };
 
+// Refresh token
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    // Generar nuevo token
+    const newToken = userService.generateToken(user.userId, user.username, user.role);
+
+    res.json({
+      message: 'Token renovado',
+      token: newToken
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al renovar token: ' + error.message });
+  }
+};
+
 // Obtener agentes (HU-5)
 export const getAgents = async (req: Request, res: Response) => {
   try {
