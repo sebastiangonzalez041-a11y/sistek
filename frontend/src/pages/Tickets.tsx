@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ticketService, Ticket } from "../services/ticketService";
+import { authService } from "../services/authService";
 import "../styles.css";
 
 function Tickets() {
 
   const [user, setUser] = useState<any>(null);
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("medio");
+  const [type, setType] = useState("Software");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(false);
@@ -16,34 +19,28 @@ function Tickets() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = localStorage.getItem("currentUser");
-    if (!currentUser) {
+    if (!authService.isAuthenticated()) {
       navigate("/");
     } else {
-      const userData = JSON.parse(currentUser);
+      const userData = authService.getCurrentUser();
       setUser(userData);
-      cargarTickets(userData);
+      cargarTickets();
     }
   }, [navigate]);
 
-  // Refrescar tickets cada 3 segundos para agentes
+  // Refrescar tickets cada 5 segundos
   useEffect(() => {
-    if (user && user.role === "agente") {
+    if (user) {
       const interval = setInterval(() => {
-        if (user) cargarTickets(user);
-      }, 3000);
+        cargarTickets();
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
-  const cargarTickets = async (currentUser: any) => {
+  const cargarTickets = async () => {
     try {
-      let miTickets;
-      if (currentUser.role === "agente") {
-        miTickets = await ticketService.getAllTickets();
-      } else {
-        miTickets = await ticketService.getUserTickets(currentUser.id);
-      }
+      const miTickets = await ticketService.getMyTickets();
       setTickets(miTickets);
     } catch (err: any) {
       console.error("Error cargando tickets:", err.message);
@@ -51,8 +48,8 @@ function Tickets() {
   };
 
   const crearTicket = async () => {
-    if (!titulo || !descripcion) {
-      setError("Todos los campos son obligatorios");
+    if (!title || !description) {
+      setError("Título y descripción son obligatorios");
       return;
     }
 
@@ -60,11 +57,13 @@ function Tickets() {
     setError("");
 
     try {
-      await ticketService.createTicket(titulo, descripcion, "open", user.id);
+      await ticketService.createTicket(title, description, priority, type);
       alert("Ticket creado exitosamente");
-      setTitulo("");
-      setDescripcion("");
-      cargarTickets(user);
+      setTitle("");
+      setDescription("");
+      setPriority("medio");
+      setType("Software");
+      cargarTickets();
     } catch (err: any) {
       setError(err.message || "Error al crear ticket");
     } finally {
@@ -72,17 +71,11 @@ function Tickets() {
     }
   };
 
-  const cambiarEstado = async (ticketId: number) => {
-    const nuevoEstado = estadoSeleccionado[ticketId];
-    if (!nuevoEstado) {
-      alert("Selecciona un estado");
-      return;
-    }
-
+  const cambiarEstado = async (ticketId: number, nuevoEstado: 'Abierto' | 'En progreso' | 'Cerrado') => {
     try {
-      await ticketService.updateTicket(ticketId, undefined, undefined, nuevoEstado);
+      await ticketService.updateTicketStatus(ticketId, nuevoEstado);
       alert("Estado actualizado");
-      cargarTickets(user);
+      cargarTickets();
     } catch (err: any) {
       alert("Error actualizando estado: " + err.message);
     }
@@ -117,7 +110,8 @@ function Tickets() {
           border: "2px solid #3b82f6",
           borderRadius: "8px",
           padding: "25px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          marginBottom: "30px"
         }}>
           <h2 style={{ color: "#3b82f6", marginTop: "0" }}>Crear Nuevo Ticket</h2>
           <p style={{ color: "#666", marginBottom: "20px" }}>Completa el formulario para crear un nuevo ticket</p>
@@ -126,19 +120,46 @@ function Tickets() {
 
           <input 
             placeholder="Título del ticket"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             disabled={loading}
             style={{ width: "100%", padding: "10px", marginBottom: "15px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box" }}
           />
 
           <textarea 
             placeholder="Descripción detallada"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             disabled={loading}
-            style={{ width: "100%", padding: "10px", marginBottom: "20px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box", minHeight: "120px" }}
+            style={{ width: "100%", padding: "10px", marginBottom: "15px", border: "1px solid #ddd", borderRadius: "4px", boxSizing: "border-box", minHeight: "120px" }}
           />
+
+          <div style={{ display: "flex", gap: "15px", marginBottom: "20px" }}>
+            <select 
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              disabled={loading}
+              style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
+            >
+              <option value="bajo">Prioridad Baja</option>
+              <option value="medio">Prioridad Media</option>
+              <option value="alto">Prioridad Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+
+            <select 
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              disabled={loading}
+              style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
+            >
+              <option value="Software">Software</option>
+              <option value="Hardware">Hardware</option>
+              <option value="Red">Red</option>
+              <option value="Acceso">Acceso</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
 
           <button 
             onClick={crearTicket}
@@ -157,6 +178,35 @@ function Tickets() {
             {loading ? "Creando..." : "Crear Ticket"}
           </button>
         </div>
+
+        {/* MIS TICKETS */}
+        <h3>Mis Tickets ({tickets.length})</h3>
+        {tickets.length === 0 ? (
+          <p style={{ color: "#666", textAlign: "center", padding: "20px" }}>No tienes tickets creados aún</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            {tickets.map((ticket) => (
+              <div key={ticket.id} style={{ 
+                border: "1px solid #e5e7eb",
+                borderRadius: "6px", 
+                padding: "15px",
+                backgroundColor: "#fafafa"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 5px 0", color: "#1f2937" }}>{ticket.title}</h4>
+                    <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>{ticket.description}</p>
+                    <div style={{ display: "flex", gap: "15px", fontSize: "13px", color: "#666" }}>
+                      <span>Estado: <strong>{ticket.status}</strong></span>
+                      <span>Prioridad: <strong>{ticket.priority}</strong></span>
+                      <span>Tipo: <strong>{ticket.type}</strong></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -167,10 +217,10 @@ function Tickets() {
       <div style={{ padding: "20px", maxWidth: "1000px", margin: "0 auto" }}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h1 style={{ margin: "0" }}>Gestionar Tickets</h1>
+          <h1 style={{ margin: "0" }}>Mis Tickets Asignados</h1>
           <div style={{ display: "flex", gap: "10px" }}>
             <button 
-              onClick={() => cargarTickets(user)}
+              onClick={() => cargarTickets()}
               style={{ 
                 backgroundColor: "#10b981", 
                 color: "white", 
@@ -203,7 +253,7 @@ function Tickets() {
         </div>
 
         {tickets.length === 0 ? (
-          <p>No hay tickets en el sistema</p>
+          <p style={{ color: "#666", textAlign: "center", padding: "20px" }}>No tienes tickets asignados</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
             {tickets.map((ticket) => (
@@ -214,25 +264,26 @@ function Tickets() {
                 backgroundColor: "#fafafa"
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <h3 style={{ margin: "0 0 5px 0" }}>{ticket.title}</h3>
-                    <p style={{ margin: "0", fontSize: "14px", color: "#666" }}>{ticket.description}</p>
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#666", textAlign: "right" }}>
-                    <div><strong>Estado:</strong> {ticket.status}</div>
-                    <div><strong>Creado:</strong> {new Date(ticket.created_at).toLocaleDateString()}</div>
+                    <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>{ticket.description}</p>
+                    <div style={{ display: "flex", gap: "15px", fontSize: "13px", color: "#666" }}>
+                      <span>Estado: <strong>{ticket.status}</strong></span>
+                      <span>Prioridad: <strong>{ticket.priority}</strong></span>
+                      <span>Tipo: <strong>{ticket.type}</strong></span>
+                      <span>Creado: <strong>{new Date(ticket.created_at).toLocaleDateString()}</strong></span>
+                    </div>
                   </div>
                 </div>
 
                 {/* CAMBIAR ESTADO */}
-                <div style={{ backgroundColor: "#fff", padding: "10px", borderRadius: "4px", marginTop: "10px", borderLeft: "4px solid #f59e0b" }}>
+                <div style={{ backgroundColor: "#fff", padding: "12px", borderRadius: "4px", marginTop: "10px", borderLeft: "4px solid #f59e0b" }}>
                   <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#374151", marginBottom: "8px" }}>
                     Cambiar Estado:
                   </label>
                   <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                     <select
                       onChange={(e) => setEstadoSeleccionado({...estadoSeleccionado, [ticket.id]: e.target.value})}
-                      defaultValue={ticket.status}
                       style={{
                         padding: "8px",
                         border: "1px solid #d1d5db",
@@ -242,12 +293,16 @@ function Tickets() {
                         flex: 1
                       }}
                     >
-                      <option value="open">Abierto</option>
-                      <option value="in_progress">En progreso</option>
-                      <option value="closed">Cerrado</option>
+                      <option value="">Selecciona un estado...</option>
+                      {ticket.status !== "Abierto" && <option value="Abierto">Abierto</option>}
+                      {ticket.status !== "En progreso" && <option value="En progreso">En progreso</option>}
+                      {ticket.status !== "Cerrado" && <option value="Cerrado">Cerrado</option>}
                     </select>
                     <button
-                      onClick={() => cambiarEstado(ticket.id)}
+                      onClick={() => {
+                        const nuevoEstado = estadoSeleccionado[ticket.id] as 'Abierto' | 'En progreso' | 'Cerrado';
+                        if (nuevoEstado) cambiarEstado(ticket.id, nuevoEstado);
+                      }}
                       style={{
                         backgroundColor: "#f59e0b",
                         color: "white",

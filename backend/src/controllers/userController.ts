@@ -1,73 +1,115 @@
 import { Request, Response } from 'express';
 import * as userService from '../services/userService';
 
-// Obtener todos los usuarios
-export const getUsers = async (req: Request, res: Response) => {
+// Registrar usuario (HU-1)
+export const register = async (req: Request, res: Response) => {
   try {
-    const users = await userService.getAllUsers();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener usuarios' });
-  }
-};
+    const { username, password, role } = req.body;
 
-// Obtener agentes
-export const getAgents = async (req: Request, res: Response) => {
-  try {
-    const agents = await userService.getAgents();
-    res.json(agents);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener agentes' });
-  }
-};
-
-// Login
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username y password son requeridos' });
     }
 
-    const user = await userService.getUserByEmail(email);
+    // Verificar si el usuario ya existe
+    const existingUser = await userService.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({ error: 'El usuario ya está registrado' });
+    }
 
+    const newUser = await userService.createUser(username, password, role || 'cliente');
+    
+    // Generar token
+    const token = userService.generateToken(newUser.id, newUser.username, newUser.role);
+
+    res.status(201).json({ 
+      message: 'Usuario registrado exitosamente', 
+      user: newUser,
+      token 
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al registrar usuario: ' + error.message });
+  }
+};
+
+// Login (HU-1)
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username y password son requeridos' });
+    }
+
+    const user = await userService.getUserByUsername(username);
     if (!user) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
-    // En producción, usar bcrypt para validar contraseña
-    if (user.password !== password) {
+    const isPasswordValid = await userService.validatePassword(password, user.password);
+    if (!isPasswordValid) {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
+    // Generar token
+    const token = userService.generateToken(user.id, user.username, user.role);
+
     res.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      message: 'Login exitoso',
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      },
+      token
     });
-  } catch (error) {
-    res.status(500).json({ error: 'Error en el login' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error en el login: ' + error.message });
   }
 };
 
-// Registrar usuario
-export const register = async (req: Request, res: Response) => {
+// Obtener todos los usuarios (solo admin)
+export const getUsers = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role } = req.body;
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, contraseña y nombre son requeridos' });
-    }
-
-    const newUser = await userService.createUser(email, password, name, role || 'cliente');
-    res.status(201).json(newUser);
+    const users = await userService.getAllUsers();
+    res.json(users);
   } catch (error: any) {
-    if (error.code === '23505') {
-      res.status(400).json({ error: 'El email ya está registrado' });
-    } else {
-      res.status(500).json({ error: 'Error al registrar usuario' });
+    res.status(500).json({ error: 'Error al obtener usuarios: ' + error.message });
+  }
+};
+
+// Obtener usuario por ID
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await userService.getUserById(parseInt(id));
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener usuario: ' + error.message });
+  }
+};
+
+// Obtener perfil del usuario autenticado
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const user = await userService.getUserById(req.userId!);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener perfil: ' + error.message });
+  }
+};
+
+// Obtener agentes (HU-5)
+export const getAgents = async (req: Request, res: Response) => {
+  try {
+    const agents = await userService.getAgents();
+    res.json(agents);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener agentes: ' + error.message });
   }
 };

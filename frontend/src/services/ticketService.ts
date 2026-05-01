@@ -1,21 +1,46 @@
+import { authService } from './authService';
+
 const API_URL = 'http://localhost:4000/api';
 
 export interface Ticket {
   id: number;
   title: string;
   description: string;
-  status: string;
+  priority: string;
+  type: string;
+  status: 'Abierto' | 'En progreso' | 'Cerrado';
   user_id: number;
+  assigned_agent_id: number | null;
+  assigned_date: string | null;
+  creator?: string;
+  assigned_agent?: string;
   created_at: string;
   updated_at: string;
 }
 
+export interface TicketHistory {
+  id: number;
+  ticket_id: number;
+  changed_by: number;
+  changed_by_user?: string;
+  old_status: string | null;
+  new_status: string | null;
+  change_type: 'status_change' | 'agent_assignment';
+  changed_at: string;
+}
+
 export const ticketService = {
-  async createTicket(title: string, description: string, status: string, user_id: number): Promise<Ticket> {
+  // Crear ticket (HU-3)
+  async createTicket(
+    title: string,
+    description: string,
+    priority: string,
+    type: string
+  ): Promise<Ticket> {
     const response = await fetch(`${API_URL}/tickets`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description, status, user_id })
+      headers: authService.getAuthHeaders(),
+      body: JSON.stringify({ title, description, priority, type })
     });
     
     if (!response.ok) {
@@ -26,40 +51,83 @@ export const ticketService = {
     return response.json();
   },
 
-  async getAllTickets(): Promise<Ticket[]> {
-    const response = await fetch(`${API_URL}/tickets`);
+  // Obtener mis tickets (HU-4)
+  async getMyTickets(): Promise<Ticket[]> {
+    const response = await fetch(`${API_URL}/tickets`, {
+      headers: authService.getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Error fetching tickets');
     return response.json();
   },
 
-  async getUserTickets(user_id: number): Promise<Ticket[]> {
-    const response = await fetch(`${API_URL}/tickets/user/${user_id}`);
-    if (!response.ok) throw new Error('Error fetching user tickets');
+  // Obtener todos los tickets (HU-4 - solo admin)
+  async getAllTickets(): Promise<Ticket[]> {
+    const response = await fetch(`${API_URL}/tickets/all`, {
+      headers: authService.getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Error fetching tickets');
     return response.json();
   },
 
+  // Obtener un ticket por ID
   async getTicket(id: number): Promise<Ticket> {
-    const response = await fetch(`${API_URL}/tickets/${id}`);
+    const response = await fetch(`${API_URL}/tickets/${id}`, {
+      headers: authService.getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Ticket not found');
     return response.json();
   },
 
-  async updateTicket(id: number, title?: string, description?: string, status?: string): Promise<Ticket> {
-    const response = await fetch(`${API_URL}/tickets/${id}`, {
+  // Cambiar estado del ticket (HU-6)
+  async updateTicketStatus(id: number, status: 'Abierto' | 'En progreso' | 'Cerrado'): Promise<Ticket> {
+    const response = await fetch(`${API_URL}/tickets/${id}/status`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description, status })
+      headers: authService.getAuthHeaders(),
+      body: JSON.stringify({ status })
     });
     
-    if (!response.ok) throw new Error('Error updating ticket');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
     return response.json();
   },
 
-  async deleteTicket(id: number): Promise<void> {
-    const response = await fetch(`${API_URL}/tickets/${id}`, {
-      method: 'DELETE'
+  // Asignar ticket a agente (HU-5)
+  async assignTicketToAgent(id: number, agentId: number): Promise<Ticket> {
+    const response = await fetch(`${API_URL}/tickets/${id}/assign`, {
+      method: 'PUT',
+      headers: authService.getAuthHeaders(),
+      body: JSON.stringify({ agentId })
     });
     
-    if (!response.ok) throw new Error('Error deleting ticket');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+    return response.json();
+  },
+
+  // Obtener historial del ticket (HU-7)
+  async getTicketHistory(id: number): Promise<TicketHistory[]> {
+    const response = await fetch(`${API_URL}/tickets/${id}/history`, {
+      headers: authService.getAuthHeaders()
+    });
+    
+    if (!response.ok) throw new Error('Error fetching ticket history');
+    return response.json();
+  },
+
+  // Eliminar ticket (solo admin)
+  async deleteTicket(id: number): Promise<void> {
+    const response = await fetch(`${API_URL}/tickets/${id}`, {
+      method: 'DELETE',
+      headers: authService.getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
   }
 };

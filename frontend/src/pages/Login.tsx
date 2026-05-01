@@ -13,8 +13,7 @@ function Login() {
 
   useEffect(() => {
     // Si ya hay un usuario logueado, ir al dashboard
-    const currentUser = localStorage.getItem("currentUser");
-    if (currentUser) {
+    if (authService.isAuthenticated()) {
       navigate("/dashboard");
     }
   }, [navigate]);
@@ -29,8 +28,7 @@ function Login() {
     setError("");
 
     try {
-      const response = await authService.login(username, password);
-      localStorage.setItem("currentUser", JSON.stringify(response.user));
+      await authService.login(username, password);
       navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión");

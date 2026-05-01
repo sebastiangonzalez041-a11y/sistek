@@ -1,29 +1,32 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { authService } from "../services/authService";
 import { ticketService } from "../services/ticketService";
 import "../styles.css";
 
 function CreateTicket() {
 
   const [user, setUser] = useState<any>(null);
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("medio");
+  const [type, setType] = useState("Software");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const currentUser = localStorage.getItem("currentUser");
-    if (!currentUser) {
+    if (!authService.isAuthenticated()) {
       navigate("/");
     } else {
-      setUser(JSON.parse(currentUser));
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
     }
   }, [navigate]);
 
   const crearTicket = async () => {
-    if (!titulo || !descripcion) {
-      setError("Todos los campos son obligatorios");
+    if (!title || !description) {
+      setError("Título y descripción son obligatorios");
       return;
     }
 
@@ -32,10 +35,10 @@ function CreateTicket() {
 
     try {
       await ticketService.createTicket(
-        titulo,
-        descripcion,
-        "open",
-        user.id
+        title,
+        description,
+        priority,
+        type
       );
 
       alert("Ticket creado exitosamente");
@@ -52,23 +55,47 @@ function CreateTicket() {
   return (
     <div className="main-content">
 
-      <h1>Crear Ticket</h1>
+      <h1>Crear Ticket de Soporte</h1>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <div className="ticket-form">
         <input 
           placeholder="Título" 
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           disabled={loading}
         />
+        
         <textarea 
           placeholder="Descripción" 
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           disabled={loading}
         />
+
+        <select 
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          disabled={loading}
+        >
+          <option value="bajo">Baja</option>
+          <option value="medio">Media</option>
+          <option value="alto">Alta</option>
+          <option value="urgente">Urgente</option>
+        </select>
+
+        <select 
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          disabled={loading}
+        >
+          <option value="Software">Software</option>
+          <option value="Hardware">Hardware</option>
+          <option value="Red">Red</option>
+          <option value="Acceso">Acceso</option>
+          <option value="Otro">Otro</option>
+        </select>
 
         <button onClick={crearTicket} disabled={loading}>
           {loading ? "Creando..." : "Crear Ticket"}
