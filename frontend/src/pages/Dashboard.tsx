@@ -1,16 +1,41 @@
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ticketService, Ticket } from "../services/ticketService";
-import { authService } from "../services/authService";
+import { authService, User } from "../services/authService";
+
 import "../styles.css";
 
 function Dashboard() {
 
   const [user, setUser] = useState<any>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [agentes, setAgentes] = useState([]);
+  const [agentes, setAgentes] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // LÓGICA HU-008: Cálculo de Desempeño
+  const calcularEstadisticas = () => {
+    const cerrados = tickets.filter(t => t.status === 'Cerrado');
+    let sumaHoras = 0;
+    
+    cerrados.forEach(t => {
+      const creacion = new Date(t.created_at).getTime();
+      const cierre = new Date(t.updated_at).getTime();
+      sumaHoras += (cierre - creacion) / (1000 * 60 * 60);
+    });
+
+    const tiempoPromedio = cerrados.length > 0 ? (sumaHoras / cerrados.length).toFixed(1) : "0";
+    
+    const datosGrafica = agentes.map((agente: any) => ({
+      nombre: agente.username,
+      cantidad: tickets.filter(t => t.assigned_agent_id === agente.id && t.status === 'Cerrado').length
+    }));
+
+    return { tiempoPromedio, datosGrafica };
+  };
+
+  const stats = calcularEstadisticas();
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -92,6 +117,35 @@ function Dashboard() {
         {/* ADMIN */}
         {user.role === "administrador" && (
           <>
+          <div className="card" style={{ borderLeft: "5px solid #6366f1" }}>
+            <h3 style={{ color: "#4f46e5", display: "flex", alignItems: "center", gap: "10px" }}>
+              📊 Reporte de Desempeño (HU-008)
+            </h3>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "15px", marginBottom: "20px" }}>
+              <div style={{ padding: "15px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>TIEMPO PROMEDIO</p>
+                <h2 style={{ margin: "5px 0" }}>{stats.tiempoPromedio} <span style={{fontSize: "14px"}}>Hrs</span></h2>
+              </div>
+              <div style={{ padding: "15px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>TOTAL CERRADOS</p>
+                <h2 style={{ margin: "5px 0" }}>{tickets.filter(t => t.status === 'Cerrado').length}</h2>
+              </div>
+            </div>
+
+            <div style={{ height: "250px", width: "100%", marginTop: "10px" }}>
+              <p style={{ fontSize: "13px", fontWeight: "bold", color: "#475569" }}>Tickets Cerrados por Agente</p>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.datosGrafica}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="nombre" fontSize={11} />
+                  <YAxis fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="cantidad" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
             {/* BOTONES DE ACCIÓN */}
             <div className="card">
               <h3>Gestión</h3>
@@ -114,6 +168,11 @@ function Dashboard() {
                 📋 Ver Todos los Tickets
               </button>
             </div>
+
+            <div style={{ padding: "15px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+  <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>TOTAL CREADOS</p>
+  <h2 style={{ margin: "5px 0" }}>{tickets.length}</h2>
+</div>
 
             {/* LISTADO DE AGENTES */}
             <div className="card">

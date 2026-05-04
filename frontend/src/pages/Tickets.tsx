@@ -15,6 +15,28 @@ function Tickets() {
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // ESTADOS (Solo para uso del Agente según HU-007)
+const [historialSelected, setHistorialSelected] = useState<any[]>([]);
+const [showHistorialId, setShowHistorialId] = useState<number | null>(null);
+const [loadingHistorial, setLoadingHistorial] = useState(false);
+
+// FUNCIÓN DE CARGA
+const verHistorial = async (ticketId: number) => {
+  if (showHistorialId === ticketId) {
+    setShowHistorialId(null);
+    return;
+  }
+  try {
+    setLoadingHistorial(true);
+    const data = await ticketService.getTicketHistory(ticketId);
+    setHistorialSelected(data);
+    setShowHistorialId(ticketId);
+  } catch (err) {
+    console.error("Error al cargar historial");
+  } finally {
+    setLoadingHistorial(false);
+  }
+};
 
   const navigate = useNavigate();
 
@@ -73,7 +95,7 @@ function Tickets() {
 
   const cambiarEstado = async (ticketId: number, nuevoEstado: 'Abierto' | 'En progreso' | 'Cerrado') => {
     try {
-      await ticketService.updateTicketStatus(ticketId, nuevoEstado);
+      await ticketService.updateTicketStatus(ticketId, nuevoEstado, user.id);
       alert("Estado actualizado");
       cargarTickets();
     } catch (err: any) {
@@ -318,6 +340,50 @@ function Tickets() {
                     </button>
                   </div>
                 </div>
+
+              {/* --- SECCIÓN DE HISTORIAL PARA EL AGENTE (HU-007) --- */}
+<div style={{ marginTop: "15px", borderTop: "1px solid #e5e7eb", paddingTop: "10px" }}>
+  <button 
+    onClick={() => verHistorial(ticket.id)}
+    style={{
+      background: "none",
+      border: "none",
+      color: "#2563eb",
+      fontSize: "13px",
+      fontWeight: "bold",
+      cursor: "pointer",
+      padding: "0"
+    }}
+  >
+    {showHistorialId === ticket.id ? "▲ Ocultar Actividad" : "▼ Ver Actividad Reciente"}
+  </button>
+
+  {showHistorialId === ticket.id && (
+    <div style={{ 
+      marginTop: "10px", 
+      backgroundColor: "#ffffff", 
+      padding: "10px", 
+      borderRadius: "4px", 
+      border: "1px solid #d1d5db" 
+    }}>
+      {loadingHistorial ? (
+        <p style={{ fontSize: "12px", margin: 0 }}>Cargando...</p>
+      ) : historialSelected.length === 0 ? (
+        <p style={{ fontSize: "12px", margin: 0, color: "#666" }}>Sin registros.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {historialSelected.map((h, index) => (
+            <li key={index} style={{ fontSize: "12px", marginBottom: "5px", borderBottom: "1px solid #f3f4f6" }}>
+              <strong>{new Date(h.fecha_registro).toLocaleString()}</strong>: 
+              {h.tipo_accion === 'status_change' ? ` Estado -> ${h.valor_nuevo}` : ` Asignado`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
+</div>
+
               </div>
             ))}
           </div>

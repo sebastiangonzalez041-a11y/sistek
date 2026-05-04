@@ -12,6 +12,32 @@ function AdminTickets() {
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
   const [selectedAgents, setSelectedAgents] = useState<{ [key: number]: string }>({});
   const [loadingAssign, setLoadingAssign] = useState<number | null>(null);
+  const [historialSelected, setHistorialSelected] = useState<any[]>([]);
+  const [showHistorialId, setShowHistorialId] = useState<number | null>(null);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  // --- LÓGICA HU-009: CÁLCULO DE SLA ---
+  const obtenerEstadoSLA = (ticket: Ticket) => {
+    const ahora = new Date().getTime();
+    const creacion = new Date(ticket.created_at).getTime();
+    const transcurridoHoras = (ahora - creacion) / (1000 * 60 * 60);
+
+    // Límites: Alta 4h, Media 24h, Baja 48h
+    let limite = 48; 
+    if (ticket.priority === "alto") limite = 4;
+    if (ticket.priority === "medio") limite = 24;
+    if (ticket.priority === "urgente") limite = 1;
+
+    if (ticket.status === "Cerrado") {
+      return { etiqueta: "Cumplido ✅", color: "#10b981", bg: "#dcfce7" };
+    }
+
+    if (transcurridoHoras > limite) {
+      return { etiqueta: "INCUMPLIDO ⚠️", color: "#ef4444", bg: "#fee2e2" };
+    } else {
+      const restante = (limite - transcurridoHoras).toFixed(1);
+      return { etiqueta: `En tiempo (${restante}h restantes)`, color: "#3b82f6", bg: "#dbeafe" };
+    }
+  };
   
   const navigate = useNavigate();
 
@@ -22,7 +48,7 @@ function AdminTickets() {
     }
 
     const userData = authService.getCurrentUser();
-    if (userData.role !== "administrador") {
+    if (userData && userData.role !== "administrador") {
       navigate("/dashboard");
       return;
     }
@@ -34,15 +60,15 @@ function AdminTickets() {
   useEffect(() => {
     if (user) {
       const interval = setInterval(() => {
-        cargarDatos();
+        cargarDatos(false);
       }, 5000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (mostrarLoading = false) => {
     try {
-      setLoading(true);
+      if (mostrarLoading) setLoading(true); 
       const todosTickets = await ticketService.getAllTickets();
       setTickets(todosTickets);
       
@@ -73,10 +99,42 @@ function AdminTickets() {
     }
   };
 
+  const cambiarEstado = async (ticketId: number, nuevoEstado: 'Abierto' | 'En progreso' | 'Cerrado') => {
+  try {
+  
+    await ticketService.updateTicketStatus(ticketId, nuevoEstado, user.id);
+    alert("Estado actualizado y registrado en historial");
+    cargarDatos(); 
+  } catch (err: any) {
+    alert("Error al cambiar estado: " + err.message);
+  }
+};
+
   const logout = () => {
     authService.logout();
     navigate("/");
   };
+  
+
+  const verHistorial = async (ticketId: number) => {
+  // Si el usuario hace clic en el que ya está abierto, lo cerramos
+  if (showHistorialId === ticketId) {
+    setShowHistorialId(null);
+    return;
+  }
+
+  try {
+    setLoadingHistorial(true);
+    const data = await ticketService.getTicketHistory(ticketId);
+    setHistorialSelected(data);
+    setShowHistorialId(ticketId);
+  } catch (err: any) {
+    console.error("Error al cargar historial:", err.message);
+    alert("No se pudo cargar el historial.");
+  } finally {
+    setLoadingHistorial(false);
+  }
+};
 
   const ticketsFiltraos = filtroEstado === "Todos" 
     ? tickets 
@@ -174,20 +232,34 @@ function AdminTickets() {
           <div className="card">
             <h3>Tickets ({ticketsFiltraos.length})</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginTop: "15px" }}>
-              {ticketsFiltraos.map((ticket) => (
-                <div
-                  key={ticket.id}
-                  style={{
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    padding: "15px",
-                    backgroundColor: "#fafafa"
-                  }}
-                >
-                  <div style={{ marginBottom: "12px" }}>
-                    <h4 style={{ margin: "0 0 5px 0", color: "#1f2937", fontSize: "16px" }}>
-                      #{ticket.id} - {ticket.title}
-                    </h4>
+              {ticketsFiltraos.map((ticket) => {
+  const sla = obtenerEstadoSLA(ticket);
+
+  return (
+    <div
+      key={ticket.id}
+      style={{
+        border: "2px solid #e5e7eb",
+        borderRadius: "8px",
+        padding: "15px",
+        backgroundColor: "#fafafa",
+        position: "relative" 
+      }}
+    >
+      <div style={{ 
+        position: "absolute", top: "15px", right: "15px", 
+        padding: "5px 12px", borderRadius: "20px", 
+        backgroundColor: sla.bg, color: sla.color, 
+        fontSize: "11px", fontWeight: "bold",
+        border: `1px solid ${sla.color}`, zIndex: 1
+      }}>
+        SLA: {sla.etiqueta}
+      </div>
+
+      <div style={{ marginBottom: "12px" }}>
+        <h4 style={{ margin: "0 0 5px 0", color: "#1f2937", fontSize: "16px" }}>
+          #{ticket.id} - {ticket.title}
+        </h4>
                     <p style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#666" }}>
                       {ticket.description}
                     </p>
@@ -255,6 +327,36 @@ function AdminTickets() {
                     </div>
                   </div>
 
+                  {/* --- SECCIÓN PARA CAMBIAR ESTADO (HU-007) --- */}
+<div style={{ 
+  backgroundColor: "#f9fafb", 
+  padding: "12px", 
+  borderRadius: "6px", 
+  marginBottom: "10px", 
+  borderLeft: "4px solid #10b981" 
+}}>
+  <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#047857", marginBottom: "8px" }}>
+    Gestionar Estado del Ticket:
+  </label>
+  <select 
+    value={ticket.status}
+    onChange={(e) => cambiarEstado(ticket.id, e.target.value as 'Abierto' | 'En progreso' | 'Cerrado')}
+    style={{
+      width: "100%",
+      padding: "8px",
+      borderRadius: "4px",
+      border: "1px solid #d1d5db",
+      fontSize: "13px",
+      backgroundColor: "white",
+      cursor: "pointer"
+    }}
+  >
+    <option value="Abierto">🔴 Abierto</option>
+    <option value="En progreso">🟠 En progreso</option>
+    <option value="Cerrado">🟢 Cerrado</option>
+  </select>
+</div>
+
                   {ticket.status !== "Cerrado" && (
                     <div style={{ backgroundColor: "#f0f9ff", padding: "12px", borderRadius: "6px", marginBottom: "10px", borderLeft: "4px solid #3b82f6" }}>
                       <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#1e40af", marginBottom: "8px" }}>
@@ -318,11 +420,70 @@ function AdminTickets() {
                   )}
 
                   <div style={{ fontSize: "12px", color: "#6b7280", display: "flex", justifyContent: "space-between" }}>
-                    <span>Creado: {new Date(ticket.created_at).toLocaleDateString()}</span>
+                    <span>Creado: {new Date(ticket.created_at).toLocaleString()}</span>
                     <span>Cliente ID: {ticket.user_id}</span>
                   </div>
+                  {/* --- BOTÓN Y VISTA DE HISTORIAL (HU-007) --- */}
+<div style={{ marginTop: "15px", borderTop: "1px dashed #ccc", paddingTop: "10px" }}>
+  <button 
+    onClick={() => verHistorial(ticket.id)}
+    style={{
+      background: "none",
+      border: "none",
+      color: "#2563eb",
+      fontSize: "13px",
+      fontWeight: "bold",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px"
+    }}
+  >
+    {showHistorialId === ticket.id ? "▲ Ocultar Actividad" : "▼ Ver Actividad Reciente"}
+    {loadingHistorial && showHistorialId === ticket.id && " (Cargando...)"}
+  </button>
+
+  {showHistorialId === ticket.id && (
+    <div style={{ 
+      marginTop: "10px", 
+      backgroundColor: "#ffffff", 
+      padding: "10px", 
+      borderRadius: "6px", 
+      border: "1px solid #e5e7eb",
+      maxHeight: "200px",
+      overflowY: "auto" 
+    }}>
+      {historialSelected.length === 0 ? (
+        <p style={{ fontSize: "12px", color: "#6b7280", textAlign: "center" }}>No hay registros aún.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {historialSelected.map((h, index) => (
+            <li key={index} style={{ 
+              fontSize: "12px", 
+              padding: "8px 0", 
+              borderBottom: index !== historialSelected.length - 1 ? "1px solid #f3f4f6" : "none" 
+            }}>
+              <div style={{ color: "#374151", fontWeight: "600" }}>
+                {h.tipo_accion === 'status_change' ? '🔄 Cambio de Estado' : '👤 Asignación de Agente'}
+              </div>
+              <div style={{ color: "#4b5563" }}>
+                {h.tipo_accion === 'status_change' 
+                  ? `De "${h.valor_anterior}" a "${h.valor_nuevo}"`
+                  : `Asignado a Agente ID: ${h.valor_nuevo}`}
+              </div>
+              <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>
+                {new Date(new Date(h.fecha_registro + (h.fecha_registro.includes('Z') ? '' : 'Z')).getTime() - 5 * 60 * 60 * 1000).toLocaleString('es-ES', { hour12: false })} • Por Usuario ID: {h.usuario_accion_id}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
+</div>
                 </div>
-              ))}
+              );
+})}
             </div>
           </div>
         )}

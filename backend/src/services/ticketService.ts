@@ -51,66 +51,55 @@ export const createTicket = async (
 };
 
 // Actualizar estado del ticket (HU-6)
+// Actualizar estado del ticket (HU-6)
 export const updateTicketStatus = async (ticketId: number, newStatus: string, changedBy: number) => {
-  // Obtener el estado actual
+  // 1. Obtener el estado actual antes de cambiarlo
   const currentTicket = await getTicketById(ticketId);
   if (!currentTicket) {
     throw new Error('Ticket no encontrado');
   }
+  const statusAnterior = currentTicket.status;
 
-  const oldStatus = currentTicket.status;
-
-  // Validar transición de estado (HU-6 criterio: flujo de estados)
-  if (oldStatus === 'Abierto' && newStatus === 'En progreso') {
-    if (!currentTicket.assigned_agent_id) {
-      throw new Error('El ticket debe estar asignado a un agente antes de cambiar a "En progreso"');
-    }
-  } else if (oldStatus === 'En progreso' && newStatus === 'Cerrado') {
-    // Permitido
-  } else if (newStatus === 'Abierto') {
-    throw new Error('No se puede revertir un ticket a estado "Abierto"');
-  } else if (oldStatus === 'Cerrado') {
-    throw new Error('No se puede cambiar el estado de un ticket cerrado');
-  }
-
-  // Actualizar el ticket
+  // 2. Actualizar el ticket en la tabla 'tickets'
   const result = await pool.query(
     'UPDATE tickets SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
     [newStatus, ticketId]
   );
 
-  // Registrar en historial
+  // 3. Registrar en historial (HU-007)
   await pool.query(
-    'INSERT INTO ticket_history (ticket_id, changed_by, old_status, new_status, change_type) VALUES ($1, $2, $3, $4, $5)',
-    [ticketId, changedBy, oldStatus, newStatus, 'status_change']
+    'INSERT INTO ticket_historia (ticket_id, usuario_accion_id, tipo_accion, valor_anterior, valor_nuevo) VALUES ($1, $2, $3, $4, $5)',
+    [ticketId, changedBy, 'status_change', statusAnterior, newStatus]
   );
 
   return result.rows[0];
 };
 
 // Asignar ticket a agente (HU-5)
+// Asignar ticket a agente (HU-5) - Versión con Historial (HU-007)
 export const assignTicketToAgent = async (ticketId: number, agentId: number, assignedBy: number) => {
   const ticket = await getTicketById(ticketId);
   if (!ticket) {
     throw new Error('Ticket no encontrado');
   }
 
-  // Validar que el agente existe y tiene rol 'agente'
+  // 1. Validar que el agente existe y tiene rol 'agente'
   const agent = await pool.query('SELECT id, role FROM users WHERE id = $1', [agentId]);
   if (agent.rows.length === 0 || agent.rows[0].role !== 'agente') {
     throw new Error('El usuario asignado no es un agente válido');
   }
 
-  // Asignar ticket
+  // 2. Asignar ticket en la tabla 'tickets'
   const result = await pool.query(
     'UPDATE tickets SET assigned_agent_id = $1, assigned_date = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *',
     [agentId, ticketId]
   );
 
-  // Registrar en historial
+  // 3. REGISTRAR EN HISTORIAL (HU-007)
+  // Aquí usamos la tabla 'ticket_historia' que creamos en Railway
   await pool.query(
-    'INSERT INTO ticket_history (ticket_id, changed_by, change_type, old_status, new_status) VALUES ($1, $2, $3, $4, $5)',
-    [ticketId, assignedBy, 'agent_assignment', null, null]
+    'INSERT INTO ticket_historia (ticket_id, usuario_accion_id, tipo_accion, valor_anterior, valor_nuevo) VALUES ($1, $2, $3, $4, $5)',
+    [ticketId, assignedBy, 'agent_assignment', 'Ninguno', agentId.toString()]
   );
 
   return result.rows[0];
@@ -125,7 +114,11 @@ export const deleteTicket = async (ticketId: number) => {
 // Obtener historial de cambios (HU-7)
 export const getTicketHistory = async (ticketId: number) => {
   const result = await pool.query(
-    'SELECT th.*, u.username as changed_by_user FROM ticket_history th LEFT JOIN users u ON th.changed_by = u.id WHERE th.ticket_id = $1 ORDER BY th.changed_at ASC',
+    `SELECT th.*, u.username as nombre_usuario 
+     FROM ticket_historia th 
+     LEFT JOIN users u ON th.usuario_accion_id = u.id 
+     WHERE th.ticket_id = $1 
+     ORDER BY th.fecha_registro ASC`,
     [ticketId]
   );
   return result.rows;

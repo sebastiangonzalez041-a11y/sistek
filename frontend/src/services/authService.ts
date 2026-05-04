@@ -1,6 +1,6 @@
 const API_URL = 'http://localhost:4000/api';
 
-interface User {
+export interface User {
   id: number;
   username: string;
   role: string;

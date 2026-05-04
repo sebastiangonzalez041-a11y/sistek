@@ -79,11 +79,11 @@ export const ticketService = {
   },
 
   // Cambiar estado del ticket (HU-6)
-  async updateTicketStatus(id: number, status: 'Abierto' | 'En progreso' | 'Cerrado'): Promise<Ticket> {
+  async updateTicketStatus(id: number, status: 'Abierto' | 'En progreso' | 'Cerrado', changedBy: number): Promise<Ticket> {
     const response = await fetch(`${API_URL}/tickets/${id}/status`, {
       method: 'PUT',
       headers: authService.getAuthHeaders(),
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, changedBy })
     });
     
     if (!response.ok) {
