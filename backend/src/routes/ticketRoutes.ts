@@ -1,0 +1,30 @@
+import { Router } from 'express';
+import * as ticketController from '../controllers/ticketController';
+import { authMiddleware, adminOnly, clientOnly, agentOnly } from '../middlewares/authMiddleware';
+
+const router = Router();
+
+// Todas las rutas de tickets requieren autenticación
+router.use(authMiddleware);
+
+// Crear ticket (HU-3) - solo clientes
+router.post('/', clientOnly, ticketController.createTicket);
+
+// Obtener tickets (HU-4)
+router.get('/', ticketController.getMyTickets);
+router.get('/all', adminOnly, ticketController.getAllTickets);
+router.get('/:id', ticketController.getTicketById);
+
+// Cambiar estado de ticket (HU-6) - agente o admin
+router.put('/:id/status', agentOnly, ticketController.updateTicketStatus);
+
+// Asignar ticket a agente (HU-5) - solo admin
+router.put('/:id/assign', adminOnly, ticketController.assignTicketToAgent);
+
+// Obtener historial (HU-7)
+router.get('/:id/history', ticketController.getTicketHistory);
+
+// Eliminar ticket - solo admin
+router.delete('/:id', adminOnly, ticketController.deleteTicket);
+
+export default router;
