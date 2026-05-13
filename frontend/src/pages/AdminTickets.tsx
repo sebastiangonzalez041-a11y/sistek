@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ticketService, Ticket } from "../services/ticketService";
 import { authService } from "../services/authService";
-import bienvenidoLogo from "../Bienvenido.png";
 import "../styles.css";
 
 function AdminTickets() {
@@ -146,15 +145,12 @@ function AdminTickets() {
   return (
     <div className="dashboard-container">
       <div className="sidebar">
-        <h2>
-          <img src={bienvenidoLogo} alt="Sistek Logo" style={{ width: 35, height: 35 }} />
-          Sistek
-        </h2>
-        <button onClick={() => navigate("/dashboard")}>🏠 Inicio</button>
+        <h2>Sistek</h2>
+        <button onClick={() => navigate("/dashboard")}>Inicio</button>
         <button onClick={() => navigate("/admin-tickets")} style={{ backgroundColor: "#3b82f6", color: "white" }}>
-          📊 Todos los Tickets
+          Todos los Tickets
         </button>
-        <button onClick={logout} className="logout-button">🚪 Cerrar sesión</button>
+        <button onClick={logout}>Cerrar sesión</button>
       </div>
 
       <div className="main-content">

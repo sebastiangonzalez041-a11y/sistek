@@ -1,7 +1,6 @@
 body {
   margin: 0;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: white;
+  font-family: 'Segoe UI', sans-serif;
 }
 
 /* CONTENEDOR PRINCIPAL */
@@ -13,281 +12,109 @@ body {
 /* LADO IZQUIERDO */
 .left-panel {
   flex: 1;
-  background: linear-gradient(135deg, #1e5cc8 0%, #2563eb 100%);
+  background: #2563eb;
   color: white;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
   padding: 60px;
-  position: relative;
-  overflow: hidden;
-}
-
-.left-panel::before {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
-  top: -100px;
-  right: -100px;
-}
-
-.left-panel-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 1;
 }
 
 .left-panel h1 {
-  font-size: 56px;
-  font-weight: 700;
-  margin: 0 0 40px 0;
-  text-align: center;
-  letter-spacing: -1px;
-}
-
-.logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 40px;
-}
-
-.logo {
-  width: 200px;
-  height: 200px;
-  object-fit: contain;
-  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2));
-}
-
-.tagline {
-  font-size: 18px;
-  font-weight: 300;
-  text-align: center;
-  letter-spacing: 0.5px;
-  margin: 0;
-  opacity: 0.95;
+  font-size: 40px;
+  margin-bottom: 10px;
 }
 
 /* LADO DERECHO */
 .right-panel {
   flex: 1;
-  background: #f8f9fa;
+  background: #f5f5f5;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px;
 }
 
 /* FORMULARIO */
 .form-box {
-  width: 100%;
-  max-width: 420px;
-  background: white;
-  padding: 50px;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  width: 300px;
 }
 
 .form-box h2 {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 30px 0;
-  color: #1a1a1a;
+  margin-bottom: 20px;
 }
 
-.form-input {
+input {
   width: 100%;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: 'Segoe UI', sans-serif;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-  background: #f8f9fa;
+  padding: 10px;
+  margin-top: 10px;
+  border: 1px solid #999;
 }
 
-.form-input:focus {
-  outline: none;
-  border-color: #2563eb;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.form-input::placeholder {
-  color: #999;
-}
-
-.form-input:disabled {
-  background: #f0f0f0;
-  color: #999;
-  cursor: not-allowed;
-}
-
-.login-button {
+button {
   width: 100%;
-  padding: 14px 16px;
-  margin-top: 24px;
-  background: linear-gradient(135deg, #2563eb 0%, #1e5cc8 100%);
+  padding: 10px;
+  margin-top: 15px;
+  background: #2563eb;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: capitalize;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 }
 
-.login-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1e5cc8 0%, #1747ab 100%);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-  transform: translateY(-2px);
-}
-
-.login-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.login-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error-message {
-  color: #ef4444;
-  font-size: 14px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #fee2e2;
-  border-radius: 6px;
-  border-left: 4px solid #ef4444;
+button:hover {
+  background: #1d4ed8;
 }
 
 .link {
-  margin-top: 20px;
+  margin-top: 10px;
   font-size: 14px;
-  text-align: center;
-  color: #666;
-}
-
-.register-link {
-  color: #2563eb;
-  cursor: pointer;
-  font-weight: 600;
-  transition: color 0.2s ease;
-  text-decoration: none;
-}
-
-.register-link:hover {
-  color: #1e5cc8;
-  text-decoration: underline;
 }
 
 /* DASHBOARD LAYOUT */
 .dashboard-container {
   display: flex;
   height: 100vh;
-  overflow: hidden;
 }
 
 /* SIDEBAR */
 .sidebar {
-  width: 280px;
-  background: linear-gradient(180deg, #1e5cc8 0%, #2563eb 100%);
+  width: 250px;
+  background: #2563eb;
   color: white;
   display: flex;
   flex-direction: column;
   padding: 20px;
-  min-height: 100vh;
-  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
 }
 
 .sidebar h2 {
-  margin: 0 0 30px 0;
-  font-size: 24px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.sidebar h2 img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  margin-bottom: 30px;
 }
 
 .sidebar button {
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid transparent;
+  background: transparent;
+  border: none;
   color: white;
   text-align: left;
-  padding: 14px 16px;
+  padding: 10px;
   cursor: pointer;
-  margin-bottom: 12px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .sidebar button:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateX(5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.sidebar button:active {
-  transform: translateX(2px);
-}
-
-.sidebar .logout-button {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: none;
-  margin-top: auto;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-.sidebar .logout-button:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+  background: rgba(255,255,255,0.2);
 }
 
 /* CONTENIDO */
 .main-content {
   flex: 1;
-  background: #f8f9fa;
+  background: #f5f5f5;
   padding: 30px;
-  overflow-y: auto;
 }
 
 /* CARD */
 .card {
   background: white;
-  padding: 24px;
+  padding: 20px;
   border-radius: 10px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: box-shadow 0.3s ease;
-}
-
-.card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .ticket-form {

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import "../styles.css";
-import bienvenidoLogo from "../Bienvenido.png";
 
 function Login() {
 
@@ -43,13 +42,8 @@ function Login() {
 
       {/* IZQUIERDA */}
       <div className="left-panel">
-        <div className="left-panel-content">
-          <h1>Bienvenido</h1>
-          <div className="logo-container">
-            <img src={bienvenidoLogo} alt="Sistek Logo" className="logo" />
-          </div>
-          <p className="tagline">Gestiona tus tickets fácilmente</p>
-        </div>
+        <h1>Bienvenido a Sistek</h1>
+        <p>Gestiona tus tickets fácilmente</p>
       </div>
 
       {/* DERECHA */}
@@ -57,14 +51,13 @@ function Login() {
         <div className="form-box">
           <h2>Iniciar sesión</h2>
 
-          {error && <p className="error-message">{error}</p>}
+          {error && <p style={{ color: 'red' }}>{error}</p>}
 
           <input 
-            placeholder="usuario@sistek.com"
+            placeholder="Usuario"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}
-            className="form-input"
           />
 
           <input 
@@ -73,16 +66,15 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
-            className="form-input"
           />
 
-          <button onClick={handleLogin} disabled={loading} className="login-button">
+          <button onClick={handleLogin} disabled={loading}>
             {loading ? "Cargando..." : "Ingresar"}
           </button>
 
           <p className="link">
             ¿No tienes cuenta?{" "}
-            <span onClick={() => navigate("/register")} className="register-link">
+            <span onClick={() => navigate("/register")} style={{color:"#2563eb", cursor:"pointer"}}>
               Regístrate
             </span>
           </p>

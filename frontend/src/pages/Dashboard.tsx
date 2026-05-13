@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ticketService, Ticket } from "../services/ticketService";
 import { authService, User } from "../services/authService";
-import bienvenidoLogo from "../Bienvenido.png";
 
 import "../styles.css";
 
@@ -86,53 +85,33 @@ function Dashboard() {
 
       {/* 🔵 SIDEBAR */}
       <div className="sidebar">
-        <h2>
-          <img src={bienvenidoLogo} alt="Sistek Logo" style={{ width: 35, height: 35 }} />
-          Sistek
-        </h2>
+        <h2>Sistek</h2>
 
-        <button onClick={() => navigate("/dashboard")}>🏠 Inicio</button>
+        <button onClick={() => navigate("/dashboard")}>Inicio</button>
 
         {user.role === "cliente" && (
-          <button onClick={() => navigate("/tickets")}>🎫 Crear Ticket</button>
+          <button onClick={() => navigate("/tickets")}>Crear Ticket</button>
         )}
 
         {user.role === "agente" && (
-          <button onClick={() => navigate("/tickets")}>📋 Mis Tickets</button>
+          <button onClick={() => navigate("/tickets")}>Mis Tickets</button>
         )}
 
         {user.role === "administrador" && (
-          <button onClick={() => navigate("/admin-tickets")}>📊 Todos los Tickets</button>
+          <button onClick={() => navigate("/admin-tickets")}>Todos los Tickets</button>
         )}
 
-        <button onClick={logout} className="logout-button">🚪 Cerrar sesión</button>
+        <button onClick={logout}>Cerrar sesión</button>
       </div>
 
       {/* ⚪ CONTENIDO */}
       <div className="main-content">
 
-        <h1 style={{ textAlign: "center", fontSize: "28px", color: "#1f2937", marginBottom: "30px" }}>Bienvenido, <span style={{ color: "#2563eb", fontWeight: "700" }}>{user.username}</span> 👋</h1>
+        <h1>Bienvenido, {user.username}</h1>
 
-        <div className="card" style={{ 
-          background: "linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%)",
-          border: "2px solid #93c5fd",
-          textAlign: "center",
-          padding: "30px",
-          marginBottom: "30px"
-        }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: "40px", flexWrap: "wrap" }}>
-            <div>
-              <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 8px 0", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>👤 Usuario</p>
-              <p style={{ fontSize: "18px", color: "#1e40af", margin: "0", fontWeight: "700" }}>{user.username}</p>
-            </div>
-            <div style={{ borderLeft: "2px solid #93c5fd" }}></div>
-            <div>
-              <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 8px 0", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>🎭 Rol</p>
-              <p style={{ fontSize: "18px", color: "#1e40af", margin: "0", fontWeight: "700", textTransform: "capitalize" }}>
-                {user.role === "administrador" ? "👨‍💼 Administrador" : user.role === "agente" ? "🎧 Agente" : "👨‍💻 Cliente"}
-              </p>
-            </div>
-          </div>
+        <div className="card">
+          <p><strong>Usuario:</strong> {user.username}</p>
+          <p><strong>Rol:</strong> {user.role}</p>
         </div>
 
         {/* ADMIN */}
@@ -262,124 +241,62 @@ function Dashboard() {
 
         {/* CLIENTE Y AGENTE */}
         {(user.role === "cliente" || user.role === "agente") && (
-          <div className="card" style={{ marginTop: "30px", borderTop: "4px solid #2563eb" }}>
-            <div style={{ textAlign: "center", marginBottom: "30px", paddingBottom: "20px", borderBottom: "2px solid #e5e7eb" }}>
-              <h2 style={{ margin: "0 0 10px 0", fontSize: "36px", fontWeight: "700", color: "#1f2937", letterSpacing: "-0.5px" }}>
-                {user.role === "cliente" ? "🎫 Mis Tickets" : "📋 Mis Tickets"}
-              </h2>
-              <p style={{ margin: "0", fontSize: "15px", color: "#6b7280", fontWeight: "500" }}>
-                {user.role === "cliente" ? "Tickets que has creado" : "Tickets asignados a ti"}
-              </p>
-            </div>
+          <div className="card">
+            <h3>Mis Tickets</h3>
+            <p>{user.role === "cliente" ? "Tickets que has creado" : "Tickets asignados a ti"}</p>
 
             {loading ? (
-              <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                <p style={{ fontSize: "16px", color: "#6b7280" }}>⏳ Cargando tickets...</p>
-              </div>
+              <p>Cargando tickets...</p>
             ) : tickets.length === 0 ? (
               <div style={{ 
                 textAlign: "center", 
-                padding: "50px 30px",
-                backgroundColor: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
-                borderRadius: "10px",
-                color: "#666",
-                border: "2px dashed #22c55e"
+                padding: "20px",
+                backgroundColor: "#f0fdf4",
+                borderRadius: "6px",
+                color: "#666"
               }}>
-                <div style={{ fontSize: "48px", marginBottom: "15px" }}>📭</div>
-                <p style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 15px 0", color: "#047857" }}>
-                  {user.role === "cliente" ? "No tienes tickets creados aún" : "No hay tickets asignados"}
-                </p>
+                <p>{user.role === "cliente" ? "No tienes tickets creados aún" : "No hay tickets asignados"}</p>
                 {user.role === "cliente" && (
                   <button 
                     onClick={() => navigate("/tickets")}
                     style={{ 
-                      backgroundColor: "#22c55e", 
+                      backgroundColor: "#3b82f6", 
                       color: "white", 
-                      padding: "12px 24px", 
+                      padding: "8px 16px", 
                       border: "none", 
-                      borderRadius: "6px", 
-                      cursor: "pointer",
-                      fontWeight: "600",
-                      fontSize: "14px",
-                      transition: "all 0.3s ease",
-                      boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)"
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#16a34a";
-                      e.currentTarget.style.boxShadow = "0 6px 16px rgba(34, 197, 94, 0.4)";
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "#22c55e";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(34, 197, 94, 0.3)";
-                      e.currentTarget.style.transform = "translateY(0)";
+                      borderRadius: "4px", 
+                      cursor: "pointer"
                     }}
                   >
-                    ➕ Crear Primer Ticket
+                    Crear Ticket
                   </button>
                 )}
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "15px" }}>
                 {tickets.slice(0, 5).map((ticket) => (
                   <div
                     key={ticket.id}
                     onClick={() => navigate(`/tickets`)}
                     style={{
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      padding: "16px",
-                      backgroundColor: "#fafafa",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                      padding: "12px",
+                      backgroundColor: "#f9fafb",
                       cursor: "pointer",
-                      transition: "all 0.3s ease",
-                      position: "relative",
-                      overflow: "hidden"
+                      transition: "background-color 0.2s"
                     }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#ffffff";
-                      e.currentTarget.style.borderColor = "#2563eb";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.15)";
-                      e.currentTarget.style.transform = "translateX(4px)";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fafafa";
-                      e.currentTarget.style.borderColor = "#e5e7eb";
-                      e.currentTarget.style.boxShadow = "none";
-                      e.currentTarget.style.transform = "translateX(0)";
-                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#f3f4f6"}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#f9fafb"}
                   >
-                    <div style={{ position: "absolute", top: "0", left: "0", width: "4px", height: "100%", backgroundColor: ticket.priority === "alto" ? "#ef4444" : ticket.priority === "medio" ? "#f59e0b" : "#22c55e" }}></div>
-                    
-                    <div style={{ paddingLeft: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                        <h4 style={{ margin: "0", color: "#1f2937", fontSize: "16px", fontWeight: "700" }}>
-                          🔖 {ticket.title}
-                        </h4>
-                        <span style={{
-                          padding: "4px 10px",
-                          backgroundColor: ticket.status === "Abierto" ? "#fee2e2" : ticket.status === "En progreso" ? "#fef3c7" : "#dcfce7",
-                          color: ticket.status === "Abierto" ? "#991b1b" : ticket.status === "En progreso" ? "#92400e" : "#166534",
-                          borderRadius: "20px",
-                          fontSize: "11px",
-                          fontWeight: "700",
-                          whiteSpace: "nowrap"
-                        }}>
-                          {ticket.status === "Abierto" ? "🔴" : ticket.status === "En progreso" ? "🟠" : "🟢"} {ticket.status}
-                        </span>
-                      </div>
-                      <p style={{ margin: "0", fontSize: "13px", color: "#6b7280", fontWeight: "500" }}>
-                        Prioridad: <strong>{ticket.priority.toUpperCase()}</strong>
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {tickets.length > 5 && (
-                  <div style={{ textAlign: "center", marginTop: "15px", paddingTop: "15px", borderTop: "1px solid #e5e7eb" }}>
-                    <p style={{ color: "#6b7280", fontSize: "13px", margin: "0" }}>
-                      Mostrando 5 de {tickets.length} tickets. <span style={{ color: "#2563eb", fontWeight: "700", cursor: "pointer" }} onClick={() => navigate("/tickets")}>Ver todos →</span>
+                    <h4 style={{ margin: "0 0 5px 0", color: "#1f2937", fontSize: "14px" }}>
+                      {ticket.title}
+                    </h4>
+                    <p style={{ margin: "0 0 5px 0", fontSize: "12px", color: "#6b7280" }}>
+                      Estado: <strong>{ticket.status}</strong> | Prioridad: <strong>{ticket.priority}</strong>
                     </p>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </div>

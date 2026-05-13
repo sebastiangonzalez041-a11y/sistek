@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import { ticketService } from "../services/ticketService";
 import "../styles.css";
-import "../create-ticket.css";
 
 function CreateTicket() {
 
@@ -54,79 +53,55 @@ function CreateTicket() {
   if (!user) return null;
 
   return (
-    <div className="create-ticket-page">
-      <div className="create-ticket-container">
-        <button className="back-button" onClick={() => navigate("/tickets")}>
-          ← Volver
+    <div className="main-content">
+
+      <h1>Crear Ticket de Soporte</h1>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <div className="ticket-form">
+        <input 
+          placeholder="Título" 
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          disabled={loading}
+        />
+        
+        <textarea 
+          placeholder="Descripción" 
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          disabled={loading}
+        />
+
+        <select 
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          disabled={loading}
+        >
+          <option value="bajo">Baja</option>
+          <option value="medio">Media</option>
+          <option value="alto">Alta</option>
+          <option value="urgente">Urgente</option>
+        </select>
+
+        <select 
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          disabled={loading}
+        >
+          <option value="Software">Software</option>
+          <option value="Hardware">Hardware</option>
+          <option value="Red">Red</option>
+          <option value="Acceso">Acceso</option>
+          <option value="Otro">Otro</option>
+        </select>
+
+        <button onClick={crearTicket} disabled={loading}>
+          {loading ? "Creando..." : "Crear Ticket"}
         </button>
-
-        <div className="create-ticket-card">
-          <h1 className="create-ticket-title">📝 Crear Nuevo Ticket</h1>
-          <p className="create-ticket-subtitle">Completa el formulario para crear un nuevo ticket</p>
-
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="ticket-form">
-            <input 
-              className="ticket-input"
-              placeholder="Título del ticket" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={loading}
-            />
-            
-            <textarea 
-              className="ticket-textarea"
-              placeholder="Descripción detallada" 
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={loading}
-              rows={6}
-            />
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>🎯 Prioridad</label>
-                <select 
-                  className="ticket-select"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  disabled={loading}
-                >
-                  <option value="bajo">🟢 Baja</option>
-                  <option value="medio">🟠 Media</option>
-                  <option value="alto">🔴 Alta</option>
-                  <option value="urgente">⚫ Urgente</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>🏷️ Tipo</label>
-                <select 
-                  className="ticket-select"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  disabled={loading}
-                >
-                  <option value="Software">💻 Software</option>
-                  <option value="Hardware">🖥️ Hardware</option>
-                  <option value="Red">🌐 Red</option>
-                  <option value="Acceso">🔐 Acceso</option>
-                  <option value="Otro">📌 Otro</option>
-                </select>
-              </div>
-            </div>
-
-            <button 
-              className="create-button" 
-              onClick={crearTicket} 
-              disabled={loading}
-            >
-              {loading ? "⏳ Creando..." : "✓ Crear Ticket"}
-            </button>
-          </div>
-        </div>
       </div>
+
     </div>
   );
 }
