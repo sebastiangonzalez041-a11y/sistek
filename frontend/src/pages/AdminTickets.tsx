@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ticketService, Ticket } from "../services/ticketService";
+import { ticketService, Ticket, PRIORIDADES, PrioridadTicket, PRIORIDAD_ORDEN } from "../services/ticketService";
 import { authService } from "../services/authService";
 import "../styles.css";
 
@@ -10,7 +10,9 @@ function AdminTickets() {
   const [agentes, setAgentes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<string>("Todos");
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [selectedAgents, setSelectedAgents] = useState<{ [key: number]: string }>({});
+  const [prioridadSeleccionada, setPrioridadSeleccionada] = useState<{ [key: number]: string }>({});
   const [loadingAssign, setLoadingAssign] = useState<number | null>(null);
   const [historialSelected, setHistorialSelected] = useState<any[]>([]);
   const [showHistorialId, setShowHistorialId] = useState<number | null>(null);
@@ -22,10 +24,9 @@ function AdminTickets() {
     const transcurridoHoras = (ahora - creacion) / (1000 * 60 * 60);
 
     // Límites: Alta 4h, Media 24h, Baja 48h
-    let limite = 48; 
-    if (ticket.priority === "alto") limite = 4;
-    if (ticket.priority === "medio") limite = 24;
-    if (ticket.priority === "urgente") limite = 1;
+    let limite = 48;
+    if (ticket.priority === "Alta") limite = 4;
+    if (ticket.priority === "Media") limite = 24;
 
     if (ticket.status === "Cerrado") {
       return { etiqueta: "Cumplido ✅", color: "#10b981", bg: "#dcfce7" };
@@ -136,9 +137,23 @@ function AdminTickets() {
   }
 };
 
-  const ticketsFiltraos = filtroEstado === "Todos" 
-    ? tickets 
+  const cambiarPrioridad = async (ticketId: number, newPriority: PrioridadTicket) => {
+    try {
+      await ticketService.updateTicketPriority(ticketId, newPriority);
+      setPrioridadSeleccionada(prev => { const n = { ...prev }; delete n[ticketId]; return n; });
+      cargarDatos();
+    } catch (err: any) {
+      alert("Error actualizando prioridad: " + err.message);
+    }
+  };
+
+  const ticketsFiltrados = filtroEstado === "Todos"
+    ? tickets
     : tickets.filter(t => t.status === filtroEstado);
+
+  const ticketsFiltraos = sortByPriority
+    ? [...ticketsFiltrados].sort((a, b) => (PRIORIDAD_ORDEN[a.priority] ?? 4) - (PRIORIDAD_ORDEN[b.priority] ?? 4))
+    : ticketsFiltrados;
 
   if (!user) return null;
 
@@ -157,7 +172,24 @@ function AdminTickets() {
         <h1>Gestión de Tickets</h1>
 
         <div className="card">
-          <h3>Filtrar por Estado</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <h3 style={{ margin: 0 }}>Filtrar por Estado</h3>
+            <button
+              onClick={() => setSortByPriority(s => !s)}
+              style={{
+                backgroundColor: sortByPriority ? "#6366f1" : "#e5e7eb",
+                color: sortByPriority ? "white" : "#374151",
+                padding: "7px 14px",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "13px",
+                fontWeight: "bold"
+              }}
+            >
+              ↕ {sortByPriority ? "Orden: Prioridad" : "Ordenar por Prioridad"}
+            </button>
+          </div>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               onClick={() => setFiltroEstado("Todos")}
@@ -291,21 +323,18 @@ function AdminTickets() {
                       <strong style={{ color: "#374151" }}>Prioridad:</strong>
                       <div style={{
                         padding: "4px 8px",
-                        backgroundColor: 
-                          ticket.priority === "bajo" ? "#e0f2fe" :
-                          ticket.priority === "medio" ? "#fef3c7" :
-                          ticket.priority === "alto" ? "#fee2e2" :
-                          "#f5d4ff",
+                        backgroundColor:
+                          ticket.priority === "Alta" ? "#fee2e2" :
+                          ticket.priority === "Media" ? "#fef3c7" :
+                          "#dcfce7",
                         color:
-                          ticket.priority === "bajo" ? "#0c4a6e" :
-                          ticket.priority === "medio" ? "#92400e" :
-                          ticket.priority === "alto" ? "#991b1b" :
-                          "#6b21a8",
+                          ticket.priority === "Alta" ? "#991b1b" :
+                          ticket.priority === "Media" ? "#92400e" :
+                          "#166534",
                         borderRadius: "4px",
                         fontSize: "12px",
                         fontWeight: "bold",
-                        marginTop: "4px",
-                        textTransform: "capitalize"
+                        marginTop: "4px"
                       }}>
                         {ticket.priority}
                       </div>
@@ -324,6 +353,45 @@ function AdminTickets() {
                       }}>
                         {ticket.type}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* CAMBIAR PRIORIDAD */}
+                  <div style={{ backgroundColor: "#fff7ed", padding: "12px", borderRadius: "6px", marginBottom: "10px", borderLeft: "4px solid #f97316" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#9a3412", marginBottom: "8px" }}>
+                      Cambiar Prioridad:
+                    </label>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <select
+                        value={prioridadSeleccionada[ticket.id] ?? ""}
+                        onChange={(e) => setPrioridadSeleccionada(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                        style={{ padding: "8px", border: "1px solid #fed7aa", borderRadius: "4px", fontSize: "13px", flex: 1, backgroundColor: "white", cursor: "pointer" }}
+                      >
+                        <option value="">Selecciona prioridad...</option>
+                        {PRIORIDADES.filter(p => p !== ticket.priority).map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const p = prioridadSeleccionada[ticket.id] as PrioridadTicket;
+                          if (p) cambiarPrioridad(ticket.id, p);
+                        }}
+                        disabled={!prioridadSeleccionada[ticket.id]}
+                        style={{
+                          padding: "8px 16px",
+                          backgroundColor: prioridadSeleccionada[ticket.id] ? "#f97316" : "#d1d5db",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: prioridadSeleccionada[ticket.id] ? "pointer" : "not-allowed",
+                          fontSize: "13px",
+                          fontWeight: "bold",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        Actualizar
+                      </button>
                     </div>
                   </div>
 

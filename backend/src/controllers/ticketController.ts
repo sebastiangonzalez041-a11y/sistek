@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as ticketService from '../services/ticketService';
 import * as userService from '../services/userService';
+import { VALID_PRIORITIES } from '../services/ticketService';
 
 // Crear ticket (HU-3)
 export const createTicket = async (req: Request, res: Response) => {
@@ -167,6 +168,42 @@ export const getTicketHistory = async (req: Request, res: Response) => {
     res.json(history);
   } catch (error: any) {
     res.status(500).json({ error: 'Error al obtener historial: ' + error.message });
+  }
+};
+
+// Actualizar prioridad de un ticket (HU prioridad)
+export const updateTicketPriority = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { priority } = req.body;
+    const userId = req.userId!;
+    const userRole = req.userRole!;
+
+    if (!priority) {
+      return res.status(400).json({
+        error: `priority es requerido. Valores permitidos: ${VALID_PRIORITIES.join(', ')}`
+      });
+    }
+
+    if (!VALID_PRIORITIES.includes(priority)) {
+      return res.status(400).json({
+        error: `Prioridad inválida. Valores permitidos: ${VALID_PRIORITIES.join(', ')}`
+      });
+    }
+
+    const ticket = await ticketService.getTicketById(parseInt(id));
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    if (userRole !== 'administrador' && ticket.assigned_agent_id !== userId) {
+      return res.status(403).json({ error: 'Solo puedes modificar tickets asignados a ti' });
+    }
+
+    const updatedTicket = await ticketService.updateTicketPriority(parseInt(id), priority, userId);
+    res.json(updatedTicket);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
   }
 };
 

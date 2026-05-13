@@ -1,4 +1,34 @@
 import pool from '../config/database';
+import { createNotification } from './notificationService';
+
+export const VALID_PRIORITIES = ['Alta', 'Media', 'Baja'] as const;
+export type Priority = typeof VALID_PRIORITIES[number];
+
+export const migratePrioritiesToNewValues = async () => {
+  await pool.query(`UPDATE tickets SET priority = 'Alta' WHERE priority IN ('alto', 'urgente')`);
+  await pool.query(`UPDATE tickets SET priority = 'Media' WHERE priority = 'medio'`);
+  await pool.query(`UPDATE tickets SET priority = 'Baja' WHERE priority = 'bajo'`);
+
+  // Actualizar el CHECK constraint de la BD buscándolo por nombre en el catálogo
+  await pool.query(`
+    DO $$
+    DECLARE v_name text;
+    BEGIN
+      SELECT conname INTO v_name
+      FROM pg_constraint pc
+      JOIN pg_class pt ON pc.conrelid = pt.oid
+      WHERE pt.relname = 'tickets' AND pc.contype = 'c'
+        AND pg_get_constraintdef(pc.oid) LIKE '%priority%'
+      LIMIT 1;
+      IF v_name IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE tickets DROP CONSTRAINT ' || quote_ident(v_name);
+      END IF;
+      ALTER TABLE tickets ADD CONSTRAINT tickets_priority_check
+        CHECK (priority IN ('Alta', 'Media', 'Baja'));
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$
+  `);
+};
 
 // Obtener todos los tickets
 export const getAllTickets = async () => {
@@ -43,6 +73,9 @@ export const createTicket = async (
   type: string,
   userId: number
 ) => {
+  if (!VALID_PRIORITIES.includes(priority as Priority)) {
+    throw new Error(`Prioridad inválida. Valores permitidos: ${VALID_PRIORITIES.join(', ')}`);
+  }
   const result = await pool.query(
     'INSERT INTO tickets (title, description, priority, type, status, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *',
     [title, description, priority, type, 'Abierto', userId]
@@ -100,6 +133,31 @@ export const assignTicketToAgent = async (ticketId: number, agentId: number, ass
   await pool.query(
     'INSERT INTO ticket_historia (ticket_id, usuario_accion_id, tipo_accion, valor_anterior, valor_nuevo) VALUES ($1, $2, $3, $4, $5)',
     [ticketId, assignedBy, 'agent_assignment', 'Ninguno', agentId.toString()]
+  );
+
+  // 4. CREAR NOTIFICACIÓN PARA EL AGENTE (HU notificaciones)
+  await createNotification(agentId, ticketId);
+
+  return result.rows[0];
+};
+
+// Actualizar prioridad de un ticket (HU prioridad)
+export const updateTicketPriority = async (ticketId: number, newPriority: string, changedBy: number) => {
+  if (!VALID_PRIORITIES.includes(newPriority as Priority)) {
+    throw new Error(`Prioridad inválida. Valores permitidos: ${VALID_PRIORITIES.join(', ')}`);
+  }
+
+  const current = await getTicketById(ticketId);
+  if (!current) throw new Error('Ticket no encontrado');
+
+  const result = await pool.query(
+    'UPDATE tickets SET priority = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [newPriority, ticketId]
+  );
+
+  await pool.query(
+    'INSERT INTO ticket_historia (ticket_id, usuario_accion_id, tipo_accion, valor_anterior, valor_nuevo) VALUES ($1, $2, $3, $4, $5)',
+    [ticketId, changedBy, 'priority_change', current.priority, newPriority]
   );
 
   return result.rows[0];

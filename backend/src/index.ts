@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 import pool from './config/database'; // Importar conexión a DB
 import userRoutes from './routes/userRoutes';
 import ticketRoutes from './routes/ticketRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import { createNotificationsTable } from './services/notificationService';
+import { migratePrioritiesToNewValues } from './services/ticketService';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -35,6 +38,15 @@ app.get('/test-db', async (req, res) => {
 // Rutas de la API
 app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+createNotificationsTable()
+  .then(() => console.log('✅ Tabla notifications lista'))
+  .catch((err) => console.error('❌ Error creando tabla notifications:', err));
+
+migratePrioritiesToNewValues()
+  .then(() => console.log('✅ Prioridades migradas a Alta/Media/Baja'))
+  .catch((err) => console.error('❌ Error migrando prioridades:', err));
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

@@ -9,7 +9,7 @@ function CreateTicket() {
   const [user, setUser] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("medio");
+  const [priority, setPriority] = useState("Media");
   const [type, setType] = useState("Software");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -74,15 +74,14 @@ function CreateTicket() {
           disabled={loading}
         />
 
-        <select 
+        <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           disabled={loading}
         >
-          <option value="bajo">Baja</option>
-          <option value="medio">Media</option>
-          <option value="alto">Alta</option>
-          <option value="urgente">Urgente</option>
+          <option value="Alta">Alta</option>
+          <option value="Media">Media</option>
+          <option value="Baja">Baja</option>
         </select>
 
         <select 

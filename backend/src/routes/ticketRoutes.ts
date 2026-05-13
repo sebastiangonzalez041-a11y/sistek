@@ -21,6 +21,9 @@ router.put('/:id/status', agentOnly, ticketController.updateTicketStatus);
 // Asignar ticket a agente (HU-5) - solo admin
 router.put('/:id/assign', adminOnly, ticketController.assignTicketToAgent);
 
+// Actualizar prioridad (HU prioridad) - agente o admin
+router.put('/:id/priority', agentOnly, ticketController.updateTicketPriority);
+
 // Obtener historial (HU-7)
 router.get('/:id/history', ticketController.getTicketHistory);
 

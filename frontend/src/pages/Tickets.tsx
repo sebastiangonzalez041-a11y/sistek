@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ticketService, Ticket } from "../services/ticketService";
+import { ticketService, Ticket, PRIORIDADES, PrioridadTicket, PRIORIDAD_ORDEN } from "../services/ticketService";
 import { authService } from "../services/authService";
 import "../styles.css";
 
@@ -9,10 +9,12 @@ function Tickets() {
   const [user, setUser] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("medio");
+  const [priority, setPriority] = useState("Media");
   const [type, setType] = useState("Software");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [estadoSeleccionado, setEstadoSeleccionado] = useState<{[key: number]: string}>({});
+  const [prioridadSeleccionada, setPrioridadSeleccionada] = useState<{[key: number]: string}>({});
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // ESTADOS (Solo para uso del Agente según HU-007)
@@ -83,7 +85,7 @@ const verHistorial = async (ticketId: number) => {
       alert("Ticket creado exitosamente");
       setTitle("");
       setDescription("");
-      setPriority("medio");
+      setPriority("Media");
       setType("Software");
       cargarTickets();
     } catch (err: any) {
@@ -100,6 +102,16 @@ const verHistorial = async (ticketId: number) => {
       cargarTickets();
     } catch (err: any) {
       alert("Error actualizando estado: " + err.message);
+    }
+  };
+
+  const cambiarPrioridad = async (ticketId: number, newPriority: PrioridadTicket) => {
+    try {
+      await ticketService.updateTicketPriority(ticketId, newPriority);
+      setPrioridadSeleccionada(prev => { const n = { ...prev }; delete n[ticketId]; return n; });
+      cargarTickets();
+    } catch (err: any) {
+      alert("Error actualizando prioridad: " + err.message);
     }
   };
 
@@ -157,16 +169,15 @@ const verHistorial = async (ticketId: number) => {
           />
 
           <div style={{ display: "flex", gap: "15px", marginBottom: "20px" }}>
-            <select 
+            <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
               disabled={loading}
               style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
             >
-              <option value="bajo">Prioridad Baja</option>
-              <option value="medio">Prioridad Media</option>
-              <option value="alto">Prioridad Alta</option>
-              <option value="urgente">Urgente</option>
+              {PRIORIDADES.map(p => (
+                <option key={p} value={p}>Prioridad {p}</option>
+              ))}
             </select>
 
             <select 
@@ -218,9 +229,18 @@ const verHistorial = async (ticketId: number) => {
                   <div style={{ flex: 1 }}>
                     <h4 style={{ margin: "0 0 5px 0", color: "#1f2937" }}>{ticket.title}</h4>
                     <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>{ticket.description}</p>
-                    <div style={{ display: "flex", gap: "15px", fontSize: "13px", color: "#666" }}>
+                    <div style={{ display: "flex", gap: "10px", fontSize: "13px", color: "#666", flexWrap: "wrap", alignItems: "center" }}>
                       <span>Estado: <strong>{ticket.status}</strong></span>
-                      <span>Prioridad: <strong>{ticket.priority}</strong></span>
+                      <span style={{
+                        padding: "2px 10px",
+                        borderRadius: "12px",
+                        fontWeight: "bold",
+                        fontSize: "12px",
+                        backgroundColor: ticket.priority === "Alta" ? "#fee2e2" : ticket.priority === "Media" ? "#fef3c7" : "#dcfce7",
+                        color: ticket.priority === "Alta" ? "#991b1b" : ticket.priority === "Media" ? "#92400e" : "#166534"
+                      }}>
+                        {ticket.priority}
+                      </span>
                       <span>Tipo: <strong>{ticket.type}</strong></span>
                     </div>
                   </div>
@@ -241,33 +261,30 @@ const verHistorial = async (ticketId: number) => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h1 style={{ margin: "0" }}>Mis Tickets Asignados</h1>
           <div style={{ display: "flex", gap: "10px" }}>
-            <button 
-              onClick={() => cargarTickets()}
-              style={{ 
-                backgroundColor: "#10b981", 
-                color: "white", 
-                padding: "8px 16px", 
-                border: "none", 
-                borderRadius: "4px", 
+            <button
+              onClick={() => setSortByPriority(s => !s)}
+              style={{
+                backgroundColor: sortByPriority ? "#6366f1" : "#e5e7eb",
+                color: sortByPriority ? "white" : "#374151",
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: "4px",
                 cursor: "pointer",
                 fontSize: "14px",
                 fontWeight: "bold"
               }}
             >
+              ↕ {sortByPriority ? "Orden: Prioridad" : "Ordenar por Prioridad"}
+            </button>
+            <button
+              onClick={() => cargarTickets()}
+              style={{ backgroundColor: "#10b981", color: "white", padding: "8px 16px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
+            >
               🔄 Refrescar
             </button>
-            <button 
+            <button
               onClick={() => navigate("/dashboard")}
-              style={{ 
-                backgroundColor: "#6b7280", 
-                color: "white", 
-                padding: "8px 16px", 
-                border: "none", 
-                borderRadius: "4px", 
-                cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "bold"
-              }}
+              style={{ backgroundColor: "#6b7280", color: "white", padding: "8px 16px", border: "none", borderRadius: "4px", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}
             >
               ← Volver
             </button>
@@ -278,7 +295,10 @@ const verHistorial = async (ticketId: number) => {
           <p style={{ color: "#666", textAlign: "center", padding: "20px" }}>No tienes tickets asignados</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-            {tickets.map((ticket) => (
+            {(sortByPriority
+              ? [...tickets].sort((a, b) => (PRIORIDAD_ORDEN[a.priority] ?? 4) - (PRIORIDAD_ORDEN[b.priority] ?? 4))
+              : tickets
+            ).map((ticket) => (
               <div key={ticket.id} style={{ 
                 border: "3px solid #e5e7eb",
                 borderRadius: "6px", 
@@ -289,9 +309,20 @@ const verHistorial = async (ticketId: number) => {
                   <div style={{ flex: 1 }}>
                     <h3 style={{ margin: "0 0 5px 0" }}>{ticket.title}</h3>
                     <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#666" }}>{ticket.description}</p>
-                    <div style={{ display: "flex", gap: "15px", fontSize: "13px", color: "#666" }}>
+                    <div style={{ display: "flex", gap: "10px", fontSize: "13px", color: "#666", flexWrap: "wrap", alignItems: "center" }}>
                       <span>Estado: <strong>{ticket.status}</strong></span>
-                      <span>Prioridad: <strong>{ticket.priority}</strong></span>
+                      <span
+                        style={{
+                          padding: "2px 10px",
+                          borderRadius: "12px",
+                          fontWeight: "bold",
+                          fontSize: "12px",
+                          backgroundColor: ticket.priority === "Alta" ? "#fee2e2" : ticket.priority === "Media" ? "#fef3c7" : "#dcfce7",
+                          color: ticket.priority === "Alta" ? "#991b1b" : ticket.priority === "Media" ? "#92400e" : "#166534"
+                        }}
+                      >
+                        {ticket.priority}
+                      </span>
                       <span>Tipo: <strong>{ticket.type}</strong></span>
                       <span>Creado: <strong>{new Date(ticket.created_at).toLocaleDateString()}</strong></span>
                     </div>
@@ -332,6 +363,44 @@ const verHistorial = async (ticketId: number) => {
                         border: "none",
                         borderRadius: "4px",
                         cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      Actualizar
+                    </button>
+                  </div>
+                </div>
+
+                {/* CAMBIAR PRIORIDAD */}
+                <div style={{ backgroundColor: "#fff7ed", padding: "12px", borderRadius: "4px", marginTop: "10px", borderLeft: "4px solid #f97316" }}>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#9a3412", marginBottom: "8px" }}>
+                    Cambiar Prioridad:
+                  </label>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                    <select
+                      value={prioridadSeleccionada[ticket.id] ?? ""}
+                      onChange={(e) => setPrioridadSeleccionada(prev => ({ ...prev, [ticket.id]: e.target.value }))}
+                      style={{ padding: "8px", border: "1px solid #fed7aa", borderRadius: "4px", fontSize: "13px", flex: 1, backgroundColor: "white" }}
+                    >
+                      <option value="">Selecciona prioridad...</option>
+                      {PRIORIDADES.filter(p => p !== ticket.priority).map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const p = prioridadSeleccionada[ticket.id] as PrioridadTicket;
+                        if (p) cambiarPrioridad(ticket.id, p);
+                      }}
+                      disabled={!prioridadSeleccionada[ticket.id]}
+                      style={{
+                        backgroundColor: prioridadSeleccionada[ticket.id] ? "#f97316" : "#d1d5db",
+                        color: "white",
+                        padding: "8px 16px",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: prioridadSeleccionada[ticket.id] ? "pointer" : "not-allowed",
                         fontSize: "13px",
                         fontWeight: "bold"
                       }}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ticketService, Ticket } from "../services/ticketService";
 import { authService, User } from "../services/authService";
+import NotificationBell from "../components/NotificationBell";
 
 import "../styles.css";
 
@@ -107,7 +108,10 @@ function Dashboard() {
       {/* ⚪ CONTENIDO */}
       <div className="main-content">
 
-        <h1>Bienvenido, {user.username}</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h1 style={{ margin: 0 }}>Bienvenido, {user.username}</h1>
+          {user.role === 'agente' && <NotificationBell />}
+        </div>
 
         <div className="card">
           <p><strong>Usuario:</strong> {user.username}</p>

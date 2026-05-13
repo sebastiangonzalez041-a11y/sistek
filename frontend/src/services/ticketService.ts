@@ -2,6 +2,11 @@ import { authService } from './authService';
 
 const API_URL = 'http://localhost:4000/api';
 
+export const PRIORIDADES = ['Alta', 'Media', 'Baja'] as const;
+export type PrioridadTicket = typeof PRIORIDADES[number];
+
+export const PRIORIDAD_ORDEN: Record<string, number> = { Alta: 1, Media: 2, Baja: 3 };
+
 export interface Ticket {
   id: number;
   title: string;
@@ -115,6 +120,20 @@ export const ticketService = {
     });
     
     if (!response.ok) throw new Error('Error fetching ticket history');
+    return response.json();
+  },
+
+  // Actualizar prioridad de un ticket (HU prioridad)
+  async updateTicketPriority(id: number, priority: PrioridadTicket): Promise<Ticket> {
+    const response = await fetch(`${API_URL}/tickets/${id}/priority`, {
+      method: 'PUT',
+      headers: authService.getAuthHeaders(),
+      body: JSON.stringify({ priority })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
     return response.json();
   },
 
